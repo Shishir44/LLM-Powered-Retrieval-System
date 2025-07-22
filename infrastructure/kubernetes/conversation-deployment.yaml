@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: conversation-service
+  namespace: customer-support
+  labels:
+    app: conversation-service
+    component: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: conversation-service
+  template:
+    metadata:
+      labels:
+        app: conversation-service
+        component: backend
+    spec:
+      containers:
+      - name: conversation-service
+        image: llm-retrieval/conversation-service:latest
+        ports:
+        - containerPort: 8001
+        env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openai-secret
+              key: api-key
+        - name: KNOWLEDGE_BASE_SERVICE_URL
+          value: "http://knowledge-base-service:8002"
+        - name: ANALYTICS_SERVICE_URL
+          value: "http://analytics-service:8005"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: conversation-service
+  namespace: customer-support
+  labels:
+    app: conversation-service
+spec:
+  selector:
+    app: conversation-service
+  ports:
+  - port: 8001
+    targetPort: 8001
+    name: http
+  type: ClusterIP

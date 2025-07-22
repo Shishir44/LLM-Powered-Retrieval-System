@@ -1,0 +1,422 @@
+{
+  "info": {
+    "name": "LLM Retrieval System API Tests",
+    "description": "Complete API test collection for the LLM-Powered Retrieval System",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "base_url_kb",
+      "value": "http://localhost:8002/api/v1"
+    },
+    {
+      "key": "base_url_conv",
+      "value": "http://localhost:8001/api/v1"
+    },
+    {
+      "key": "base_url_analytics",
+      "value": "http://localhost:8005/api/v1"
+    },
+    {
+      "key": "document_id",
+      "value": ""
+    },
+    {
+      "key": "conversation_id",
+      "value": "test-conversation-{{$timestamp}}"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Checks",
+      "item": [
+        {
+          "name": "Knowledge Base Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8002/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8002",
+              "path": ["health"]
+            }
+          }
+        },
+        {
+          "name": "Conversation Service Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8001/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8001",
+              "path": ["health"]
+            }
+          }
+        },
+        {
+          "name": "Analytics Service Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8005/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8005",
+              "path": ["health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Knowledge Base Service",
+      "item": [
+        {
+          "name": "Create Document",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response has document ID\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.id).to.not.be.undefined;",
+                  "    pm.collectionVariables.set(\"document_id\", jsonData.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"API Testing Guide\",\n  \"content\": \"This comprehensive guide covers how to test REST APIs effectively. It includes best practices for automated testing, manual testing approaches, and tools like Postman. Key topics include authentication testing, error handling validation, performance testing, and integration testing strategies.\",\n  \"category\": \"documentation\",\n  \"subcategory\": \"testing\",\n  \"tags\": [\"api\", \"testing\", \"guide\", \"automation\"],\n  \"metadata\": {\n    \"author\": \"qa-team\",\n    \"version\": \"1.0\",\n    \"created_date\": \"2024-07-22\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url_kb}}/documents",
+              "host": ["{{base_url_kb}}"],
+              "path": ["documents"]
+            }
+          }
+        },
+        {
+          "name": "Search Documents",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Search returns results\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.results).to.be.an('array');",
+                  "    pm.expect(jsonData.total).to.be.at.least(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_kb}}/search?q=API testing&limit=5&include_content=true",
+              "host": ["{{base_url_kb}}"],
+              "path": ["search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "API testing"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                },
+                {
+                  "key": "include_content",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Document by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 or 404\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test(\"Response contains document data\", function () {",
+                  "        const jsonData = pm.response.json();",
+                  "        pm.expect(jsonData.id).to.not.be.undefined;",
+                  "        pm.expect(jsonData.title).to.not.be.undefined;",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_kb}}/documents/{{document_id}}",
+              "host": ["{{base_url_kb}}"],
+              "path": ["documents", "{{document_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Conversation Service",
+      "item": [
+        {
+          "name": "Send Chat Message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains message\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.response).to.not.be.undefined;",
+                  "    pm.expect(jsonData.conversation_id).to.not.be.undefined;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"How do I test REST APIs effectively?\",\n  \"conversation_id\": \"{{conversation_id}}\",\n  \"context\": {\n    \"user_type\": \"developer\",\n    \"session_type\": \"api_testing\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url_conv}}/chat",
+              "host": ["{{base_url_conv}}"],
+              "path": ["chat"]
+            }
+          }
+        },
+        {
+          "name": "Get Conversation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains conversation data\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.conversation_id).to.equal(pm.collectionVariables.get(\"conversation_id\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_conv}}/conversations/{{conversation_id}}",
+              "host": ["{{base_url_conv}}"],
+              "path": ["conversations", "{{conversation_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics Service",
+      "item": [
+        {
+          "name": "Evaluate Response",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains metrics\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.metrics).to.not.be.undefined;",
+                  "    pm.expect(jsonData.evaluation_id).to.not.be.undefined;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"How do I test REST APIs effectively?\",\n  \"context\": \"This comprehensive guide covers how to test REST APIs effectively. It includes best practices for automated testing, manual testing approaches, and tools like Postman.\",\n  \"response\": \"To test REST APIs effectively, you should use a combination of automated and manual testing approaches. Tools like Postman are excellent for API testing, and you should follow best practices for comprehensive coverage.\",\n  \"conversation_id\": \"{{conversation_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_analytics}}/evaluate",
+              "host": ["{{base_url_analytics}}"],
+              "path": ["evaluate"]
+            }
+          }
+        },
+        {
+          "name": "Get System Metrics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains current metrics\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.current_metrics).to.not.be.undefined;",
+                  "    pm.expect(jsonData.timestamp).to.not.be.undefined;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_analytics}}/metrics",
+              "host": ["{{base_url_analytics}}"],
+              "path": ["metrics"]
+            }
+          }
+        },
+        {
+          "name": "Submit User Feedback",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Feedback recorded successfully\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.include('successfully');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"conversation_id\": \"{{conversation_id}}\",\n  \"satisfaction_score\": 0.9,\n  \"feedback_text\": \"Very helpful and comprehensive response about API testing!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url_analytics}}/feedback",
+              "host": ["{{base_url_analytics}}"],
+              "path": ["feedback"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Integration Tests",
+      "item": [
+        {
+          "name": "Full Workflow Test",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Set a unique conversation ID for this test run",
+                  "pm.collectionVariables.set(\"conversation_id\", \"integration-test-\" + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// This test should be run after other tests to ensure system integration",
+                  "pm.test(\"Integration test setup complete\", function () {",
+                  "    pm.expect(pm.collectionVariables.get(\"conversation_id\")).to.not.be.undefined;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url_analytics}}/health-metrics",
+              "host": ["{{base_url_analytics}}"],
+              "path": ["health-metrics"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

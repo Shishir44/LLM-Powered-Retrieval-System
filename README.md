@@ -1,301 +1,260 @@
-# LLM-Powered-Retrieval-System
-# Vector Database System
+# LLM-Powered Retrieval System
 
-A robust and flexible vector database system built with FastAPI and LlamaIndex, featuring advanced querying capabilities, metadata filtering, and hybrid search functionality.
+A production-ready, microservices-based retrieval system powered by advanced RAG capabilities, built with FastAPI, LangChain, and modern containerization.
 
-## Table of Contents
-- [Features](#features)
-- [System Architecture](#system-architecture)
-- [Installation](#installation)
-- [Usage](#usage)
-  - [Creating an Index](#creating-an-index)
-  - [Adding Vectors](#adding-vectors)
-  - [Querying](#querying)
-  - [Metadata Filtering](#metadata-filtering)
-  - [Delete Operations](#delete-operations)
-- [API Reference](#api-reference)
-- [Advanced Features](#advanced-features)
-- [Error Handling](#error-handling)
-
-## Features
-
-- **Vector Storage & Retrieval**: Custom vector store implementation with efficient storage and retrieval mechanisms
-- **Advanced Metadata Filtering**: Support for complex nested filters with AND/OR conditions
-- **Hybrid Search**: Combines semantic similarity with keyword matching for improved search accuracy
-- **CRUD Operations**: Complete Create, Read, Update, Delete operations for vectors and indices
-- **Persistent Storage**: Automatic persistence of vectors and metadata to disk
-- **Query Engine Management**: Create and manage multiple query engines with different configurations
-- **Token-Based Access**: Secure access to indices using unique tokens
-- **Enhanced Error Handling**: Comprehensive error tracking and reporting
-
-## System Architecture
-
-The system consists of two main components:
-
-1. **CustomVectorStore**: A custom implementation of LlamaIndex's VectorStore
-   - Handles vector storage and retrieval
-   - Implements metadata filtering
-   - Manages persistence to disk
-
-2. **FastAPI Application**: REST API interface
-   - Manages indexes and query engines
-   - Handles CRUD operations
-   - Implements complex querying logic
-
-## Installation
+## 🚀 Quick Start (2 minutes)
 
 ```bash
-# Clone the repository
-git clone <repository-url>
+# 1. Clone and setup
+git clone <your-repo>
+cd LLM-Powered-Retrieval-System
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Environment setup
+# 2. Configure environment
 cp .env.example .env
-# Add your OpenAI API key to .env
+# Edit .env with your API keys (OPENAI_API_KEY, PINECONE_API_KEY)
+
+# 3. Start everything
+./quick-start.sh
+
+# 4. Test the system
+./test_complete_workflow.sh
 ```
 
-Required Environment Variables:
+## 🏗️ Architecture Overview
+
+### Microservices Structure
 ```
-OPENAI_API_KEY=your_api_key_here
-```
-
-## Usage
-
-### Creating an Index
-
-```python
-# Create a new index
-POST /create_index/
-{
-    "index_name": "my_index"
-}
-```
-
-Response:
-```json
-{
-    "message": "Index my_index created successfully.",
-    "token": "unique-token-id"
-}
+┌─────────────────────────────────────────────────────────┐
+│                 Docker Compose                          │
+├─────────────────┬─────────────────┬─────────────────────┤
+│ Knowledge Base  │ Conversation    │ Analytics           │
+│ Service :8002   │ Service :8001   │ Service :8005       │
+│                 │                 │                     │
+│ • Document CRUD │ • Chat API      │ • Quality Metrics  │
+│ • Vector Search │ • RAG Pipeline  │ • User Feedback    │
+│ • Hybrid        │ • Streaming     │ • Prometheus       │
+│   Retrieval     │ • Context Mgmt  │   Metrics          │
+└─────────────────┴─────────────────┴─────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│          Infrastructure Services                        │
+│ PostgreSQL | Redis | Prometheus | Grafana              │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### Adding Vectors
+### Independent Services
+- **✅ Complete isolation** - Each service has its own dependencies, Docker container, and lifecycle
+- **✅ Independent deployment** - Services can be built, tested, and deployed separately  
+- **✅ Fault tolerance** - Failure of one service doesn't affect others
+- **✅ Horizontal scaling** - Scale services independently based on load
 
-```python
-# Add vectors to an index
-POST /add_vector/
-{
-    "token": "your-token",
-    "content": ["Your text content here"],
-    "metadata": {
-        "category": "example",
-        "tags": ["tag1", "tag2"]
-    }
-}
+## 📁 Project Structure
+
+```
+LLM-Powered-Retrieval-System/
+├── 🔧 Setup & Configuration
+│   ├── .env.example                    # Environment template
+│   ├── docker-compose.yml              # Multi-service orchestration
+│   ├── setup.sh                        # Full setup script
+│   └── quick-start.sh                  # 2-minute quick start
+│
+├── 🧪 Testing & Quality
+│   ├── test_complete_workflow.sh       # End-to-end testing
+│   ├── TESTING_GUIDE.md               # Comprehensive test guide
+│   ├── postman_collection.json        # API test collection
+│   └── load_tests/                     # Performance testing
+│
+├── 🚀 Services (Independent Microservices)
+│   ├── knowledge-base-service/         # Document & RAG operations
+│   │   ├── src/
+│   │   │   ├── main.py                # FastAPI app
+│   │   │   ├── core/                  # Business logic
+│   │   │   │   ├── retrieval.py       # Advanced RAG retriever
+│   │   │   │   ├── chunking.py        # Document processing
+│   │   │   │   └── cache.py           # Vector caching
+│   │   │   └── api/routes.py          # REST endpoints
+│   │   ├── Dockerfile                 # Container definition
+│   │   ├── requirements.txt           # Service dependencies
+│   │   └── README.md                  # Service documentation
+│   │
+│   ├── conversation-service/           # Chat & conversation management
+│   │   ├── src/core/
+│   │   │   ├── rag_pipeline.py        # Multi-stage RAG
+│   │   │   ├── context_manager.py     # Conversation context
+│   │   │   ├── streaming.py           # Real-time responses
+│   │   │   └── prompts.py             # LLM prompt templates
+│   │   └── [same structure as above]
+│   │
+│   └── analytics-service/              # Metrics & evaluation
+│       ├── src/core/rag_metrics.py    # Quality evaluation
+│       └── [same structure as above]
+│
+└── 🏗️ Infrastructure
+    └── customer-support-platform/infrastructure/
+        ├── kubernetes/                 # K8s deployment manifests
+        └── monitoring/                 # Prometheus configuration
 ```
 
-### Querying
+## 🔥 Key Features
 
-Basic Query:
-```python
-POST /query_index/
-{
-    "token": "your-token",
-    "query": "Your query here",
-    "query_engine_id": "optional-engine-id"
-}
+### 🤖 Advanced RAG Capabilities
+- **Hybrid Retrieval**: Vector similarity + BM25 + Contextual compression
+- **Multi-stage Pipeline**: Query rewriting → Multi-query retrieval → Reranking
+- **Context-aware Responses**: Conversation history + User intent + Sentiment analysis
+- **Streaming Responses**: Real-time response generation
+
+### 🏛️ Production-Ready Architecture
+- **Independent Services**: True microservices with separate containers
+- **Health Monitoring**: Comprehensive health checks and metrics
+- **Horizontal Scaling**: Kubernetes-ready with HPA support
+- **Fault Tolerance**: Circuit breakers and graceful degradation
+
+### 📊 Quality & Observability
+- **RAG Quality Metrics**: Retrieval precision, response relevance, context utilization
+- **User Feedback Loop**: Satisfaction scoring and continuous improvement
+- **Comprehensive Monitoring**: Prometheus + Grafana dashboards
+- **Distributed Tracing**: Request tracing across services
+
+## 🛠️ Development
+
+### Local Development
+```bash
+# Start individual service for development
+cd knowledge-base-service
+pip install -r requirements.txt  
+python -m src.main
+
+# Or use Docker for consistency
+docker-compose up knowledge-base-service
 ```
 
-Advanced Query with Filters:
-```python
-POST /query_index/
-{
-    "token": "your-token",
-    "query": "Your query here",
-    "filter_groups": [
-        {
-            "condition": "AND",
-            "filters": [
-                {
-                    "key": "category",
-                    "value": "example",
-                    "operator": "=="
-                },
-                {
-                    "key": "date",
-                    "value": "2024-01-01",
-                    "operator": ">="
-                }
-            ]
-        }
-    ],
-    "top_level_condition": "AND"
-}
+### Testing
+```bash
+# Quick health check
+curl http://localhost:8001/health
+
+# Run full test suite
+./test_complete_workflow.sh
+
+# Load testing
+./load_tests/run_load_tests.sh
+
+# Import Postman collection
+# File: postman_collection.json
 ```
 
-### Metadata Filtering
+### API Documentation
+- **Knowledge Base**: http://localhost:8002/docs
+- **Conversation**: http://localhost:8001/docs  
+- **Analytics**: http://localhost:8005/docs
 
-The system supports complex metadata filtering with various operators:
+## 🚢 Deployment
 
-- `==`: Equal to
-- `!=`: Not equal to
-- `>`: Greater than
-- `>=`: Greater than or equal to
-- `<`: Less than
-- `<=`: Less than or equal to
-- `contains`: Contains value
-
-Nested filters example:
-```python
-{
-    "filter_groups": [
-        {
-            "condition": "OR",
-            "filters": [
-                {
-                    "key": "category",
-                    "value": "tech",
-                    "operator": "=="
-                },
-                {
-                    "key": "tags",
-                    "value": "AI",
-                    "operator": "contains"
-                }
-            ]
-        },
-        {
-            "condition": "AND",
-            "filters": [
-                {
-                    "key": "date",
-                    "value": "2024-01-01",
-                    "operator": ">="
-                }
-            ]
-        }
-    ],
-    "top_level_condition": "AND"
-}
+### Docker Compose (Development/Staging)
+```bash
+docker-compose up -d
 ```
 
-### Delete Operations
-
-Delete Vectors:
-```python
-POST /delete_nodes/
-{
-    "token": "your-token",
-    "metadata_filters": [
-        {
-            "key": "category",
-            "value": "example",
-            "operator": "=="
-        }
-    ]
-}
+### Kubernetes (Production)
+```bash
+kubectl apply -f customer-support-platform/infrastructure/kubernetes/
 ```
 
-Delete Index:
-```python
-DELETE /index/
-{
-    "token": "your-token"
-}
+### Environment Variables
+Key configurations in `.env`:
+- `OPENAI_API_KEY` - OpenAI API access
+- `PINECONE_API_KEY` - Vector database access
+- `VECTOR_STORE_TYPE` - Vector database type (pinecone/weaviate/chroma)
+- Service URLs for inter-service communication
+
+## 🔍 Monitoring & Observability
+
+### Dashboards
+- **Grafana**: http://localhost:3000 (admin/admin)
+- **Prometheus**: http://localhost:9090
+- **Service Metrics**: Each service exposes `/metrics` endpoint
+
+### Key Metrics
+- **Response Quality**: Retrieval precision, response relevance
+- **Performance**: Response times, throughput, error rates
+- **System Health**: Service uptime, resource utilization
+- **User Satisfaction**: Feedback scores, conversation success rates
+
+## 🤝 API Usage Examples
+
+### Create and Search Documents
+```bash
+# Create document
+curl -X POST "http://localhost:8002/api/v1/documents" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"API Guide","content":"How to use our API...","category":"docs"}'
+
+# Search documents  
+curl "http://localhost:8002/api/v1/search?q=API%20guide&limit=5"
 ```
 
-## Advanced Features
-
-### Hybrid Search
-
-The system implements a hybrid search mechanism that combines:
-- Semantic similarity using embeddings
-- Keyword-based matching
-- Metadata filtering
-
-The hybrid search provides better search results by:
-- Considering semantic meaning of the query
-- Matching specific keywords
-- Applying metadata filters
-- Using customizable weights for different search components
-
-### Query Engine Management
-
-Create custom query engines with specific configurations:
-```python
-POST /create_query_engine/
-{
-    "token": "your-token",
-    "query_engine_name": "custom_engine",
-    "metadata_filters": [...],
-    "filter_groups": [...]
-}
+### Chat Conversation
+```bash
+# Send chat message
+curl -X POST "http://localhost:8001/api/v1/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"How do I use the API?","conversation_id":"chat-1"}'
 ```
 
-## Error Handling
+### Quality Evaluation
+```bash
+# Evaluate response quality
+curl -X POST "http://localhost:8005/api/v1/evaluate" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"...","context":"...","response":"..."}'
+```
 
-The system provides detailed error messages and status codes:
-- 404: Resource not found (invalid token, missing index)
-- 400: Bad request (invalid parameters)
-- 500: Internal server error (processing errors)
+## 📋 System Requirements
 
-Error responses include:
-- Detailed error message
-- Stack trace (in development)
-- Affected components
-- Partial results (when applicable)
+- **Docker** & **Docker Compose**
+- **API Keys**: OpenAI, Vector Database (Pinecone/Weaviate)
+- **Ports**: 8001, 8002, 8005, 9090, 3000
+- **Memory**: 4GB+ recommended
+- **Storage**: Vector database + PostgreSQL
 
-## Best Practices
+## 🆘 Troubleshooting
 
-1. **Index Management**
-   - Create separate indices for different data types
-   - Use meaningful index names
-   - Regularly backup index data
+### Common Issues
+- **Services not starting**: Check API keys in `.env`
+- **Port conflicts**: Ensure ports 8001, 8002, 8005 are available
+- **Connection errors**: Verify Docker network and service communication
+- **API errors**: Check service logs with `docker-compose logs [service-name]`
 
-2. **Metadata Design**
-   - Use consistent metadata structure
-   - Include relevant search fields
-   - Consider query patterns when designing metadata
+### Get Help
+```bash
+# View service logs
+docker-compose logs knowledge-base-service
 
-3. **Query Optimization**
-   - Use appropriate filter combinations
-   - Leverage hybrid search capabilities
-   - Monitor query performance
+# Check service health
+curl http://localhost:8002/health
 
-4. **Error Handling**
-   - Implement proper error handling in your client
-   - Log and monitor error responses
-   - Handle token expiration and renewal
+# Run diagnostics
+./test_complete_workflow.sh
+```
 
-## Limitations
+## 🎯 Success Criteria
 
-- Maximum vector dimension is determined by the embedding model
-- Query response time may increase with larger indices
-- Metadata filters should be used judiciously to maintain performance
-- Token storage requires proper security measures
+Your system is working correctly when:
+- ✅ All health endpoints return `200 OK`
+- ✅ Documents can be created and searched
+- ✅ Conversations generate coherent responses
+- ✅ Analytics track quality metrics
+- ✅ Test script passes all checks
 
-## Troubleshooting
+## 📈 What's Next?
 
-Common issues and solutions:
+- **Scale**: Deploy to Kubernetes for production
+- **Extend**: Add more vector stores or LLM providers
+- **Optimize**: Fine-tune retrieval and ranking algorithms
+- **Integrate**: Connect with external APIs and data sources
+- **Monitor**: Set up alerts and performance optimization
 
-1. **Query Returns No Results**
-   - Check metadata filters
-   - Verify token validity
-   - Ensure index contains data
+---
 
-2. **Poor Search Quality**
-   - Adjust hybrid search weights
-   - Review metadata structure
-   - Consider using different filter combinations
+**🎉 Ready to build amazing RAG applications!**
 
-3. **Performance Issues**
-   - Optimize index size
-   - Review filter complexity
-   - Check system resources
-
-
-
-## License
-
+For detailed testing instructions, see [TESTING_GUIDE.md](TESTING_GUIDE.md)
