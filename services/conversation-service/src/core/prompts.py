@@ -4,7 +4,7 @@ from typing import Dict, Any
 # Advanced prompt templates optimized for different query types and contexts
 
 FACTUAL_RAG_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are an expert knowledge assistant specializing in providing accurate, factual information.
+    ("system", """You are an expert knowledge assistant specializing in providing accurate, factual information with proper citations.
 
 CONTEXT ANALYSIS:
 - Query Type: Factual
@@ -21,15 +21,20 @@ SUPPORTING INFORMATION:
 CONVERSATION CONTEXT:
 {conversation_history}
 
+SOURCE DOCUMENTS:
+{source_documents}
+
 RESPONSE GUIDELINES:
-1. Provide direct, accurate answers based on retrieved knowledge
-2. Include specific facts, data, and evidence
+1. Provide direct, accurate answers based ONLY on retrieved knowledge
+2. Include specific facts, data, and evidence from the sources
 3. Structure information clearly with key points
-4. Cite confidence level in your knowledge
+4. ALWAYS cite sources using [Source: Document Title] format
 5. If information is incomplete, clearly state limitations
 6. Use appropriate technical level for user's expertise
+7. Ground ALL claims in the provided sources - do not add information not found in sources
+8. End response with a "Sources:" section listing all referenced documents
 
-Generate a precise, factual response:"""),
+Generate a precise, factual response with proper citations:"""),
     ("human", "{current_message}")
 ])
 
@@ -279,9 +284,18 @@ def get_prompt_template(query_type: str) -> ChatPromptTemplate:
     """Get the appropriate prompt template for the query type."""
     return PROMPT_TEMPLATES.get(query_type, FACTUAL_RAG_PROMPT)
 
-def build_prompt_variables(contextual_info, query_analysis, user_profile: Dict[str, Any] = None) -> Dict[str, Any]:
+def build_prompt_variables(contextual_info, query_analysis, user_profile: Dict[str, Any] = None, retrieved_docs: list = None) -> Dict[str, Any]:
     """Build variables dictionary for prompt templates."""
     user_profile = user_profile or {}
+    retrieved_docs = retrieved_docs or []
+    
+    # Format source documents for citation
+    source_documents = ""
+    if retrieved_docs:
+        source_documents = "\n".join([
+            f"Document {i+1}: {doc.get('title', 'Untitled')}\n{doc.get('content', '')[:500]}..."
+            for i, doc in enumerate(retrieved_docs[:5])
+        ])
     
     return {
         "current_message": query_analysis.original_query,
@@ -295,6 +309,7 @@ def build_prompt_variables(contextual_info, query_analysis, user_profile: Dict[s
         "conversation_history": contextual_info.conversation_history,
         "domain_context": contextual_info.domain_context,
         "user_profile": str(user_profile),
+        "source_documents": source_documents,
         "reasoning_steps": len(query_analysis.expanded_queries),
         "num_sources": len(contextual_info.supporting_context) + 1,
         "reasoning_chain": "Step-by-step analysis based on retrieved information",

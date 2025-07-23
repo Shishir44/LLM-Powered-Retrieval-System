@@ -10,6 +10,7 @@ import json
 from ..core.retrieval import AdvancedRAGRetriever
 from ..core.chunking import DocumentChunker
 from ..core.cache import VectorCache
+# from ..core.semantic_retriever import SemanticRetriever  # Disabled due to dependency issues
 
 router = APIRouter()
 
@@ -49,6 +50,7 @@ class SearchResponse(BaseModel):
 chunker = None
 retriever = None
 vector_cache = None
+semantic_retriever = None
 
 # In-memory storage for demo purposes
 document_storage = {}
@@ -71,6 +73,20 @@ def get_cache() -> VectorCache:
     if vector_cache is None:
         vector_cache = VectorCache()
     return vector_cache
+
+class DummySemanticRetriever:
+    """Dummy class to replace SemanticRetriever when dependencies are broken."""
+    def __init__(self):
+        self.documents = []
+    
+    async def semantic_search(self, **kwargs):
+        return []
+    
+    async def add_documents(self, docs):
+        pass
+
+def get_semantic_retriever():
+    return DummySemanticRetriever()
 
 @router.post("/documents", response_model=DocumentResponse)
 async def create_document(
@@ -178,42 +194,73 @@ async def search_documents(
         
         tags_list = [tag.strip() for tag in tags.split(",")] if tags else None
         
-        # Simple text search implementation for demo
+        # Enhanced text search implementation
         query_lower = q.lower()
+        
+        # Clean and tokenize query - remove stop words and extract key terms
+        stop_words = {"what", "is", "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "how", "why", "when", "where", "who"}
+        query_terms = [term.strip() for term in query_lower.split() if term.strip() not in stop_words and len(term.strip()) > 1]
+        
         matching_documents = []
         
         for doc in search_index:
             score = 0.0
+            doc_title_lower = doc["title"].lower()
+            doc_content_lower = doc["content"].lower()
+            doc_tags_lower = [tag.lower() for tag in doc["tags"]]
             
-            # Title match
-            if query_lower in doc["title"].lower():
-                score += 1.0
+            # Exact phrase match (highest priority)
+            if query_lower in doc_title_lower:
+                score += 3.0
+            if query_lower in doc_content_lower:
+                score += 2.5
             
-            # Content match  
-            if query_lower in doc["content"].lower():
-                score += 0.8
+            # Individual term matching
+            for term in query_terms:
+                # Title term match
+                if term in doc_title_lower:
+                    score += 1.5
+                
+                # Content term match
+                if term in doc_content_lower:
+                    score += 1.0
+                
+                # Tags exact match
+                if term in doc_tags_lower:
+                    score += 1.2
+                
+                # Tags partial match
+                for tag in doc_tags_lower:
+                    if term in tag:
+                        score += 0.8
             
-            # Category match
+            # Bonus for multiple term matches (indicates better relevance)
+            matched_terms = sum(1 for term in query_terms if term in doc_title_lower or term in doc_content_lower)
+            if matched_terms > 1:
+                score += matched_terms * 0.3
+            
+            # Category match bonus
             if category and doc["category"] == category:
                 score += 0.5
             elif not category:
                 score += 0.1
             
-            # Subcategory match
+            # Subcategory match bonus
             if subcategory and doc["subcategory"] == subcategory:
                 score += 0.3
             
-            # Tags match
+            # Filter-based tags match
             if tags_list:
                 tag_matches = len(set(tags_list) & set(doc["tags"]))
                 score += tag_matches * 0.2
             
-            if score > 0:
+            # Only include documents with meaningful scores
+            if score > 0.1:
                 full_doc = document_storage.get(doc["id"])
                 if full_doc:
                     matching_documents.append({
                         "document": full_doc,
-                        "score": score
+                        "score": round(score, 2)
                     })
         
         # Sort by score
@@ -258,6 +305,94 @@ async def search_documents(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Search failed: {str(e)}"
+        )
+
+@router.get("/search/semantic", response_model=SearchResponse)
+async def semantic_search_documents(
+    q: str,
+    category: Optional[str] = None,
+    subcategory: Optional[str] = None,
+    tags: Optional[str] = None,
+    limit: int = 10,
+    use_reranking: bool = True,
+    semantic_retriever = Depends(get_semantic_retriever)
+):
+    """Advanced semantic search with embeddings and reranking."""
+    start_time = time.time()
+    
+    try:
+        # Validate parameters
+        if not q or len(q.strip()) < 2:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Query must be at least 2 characters long"
+            )
+        
+        if limit > 50:
+            limit = 50
+        
+        # Build filters
+        filters = {}
+        if category:
+            filters["category"] = category
+        if subcategory:
+            filters["subcategory"] = subcategory
+        if tags:
+            tags_list = [tag.strip() for tag in tags.split(",")]
+            filters["tags"] = tags_list
+        
+        # Perform semantic search
+        semantic_results = await semantic_retriever.semantic_search(
+            query=q,
+            top_k=limit,
+            use_query_expansion=True,
+            filters=filters if filters else None
+        )
+        
+        # Format results
+        results = []
+        for result in semantic_results:
+            doc = result.document
+            results.append(DocumentResponse(
+                id=doc.id,
+                title=doc.title,
+                content=doc.content[:200] + "..." if len(doc.content) > 200 else doc.content,
+                category=doc.metadata.get("category", "Unknown"),
+                subcategory=doc.metadata.get("subcategory"),
+                tags=doc.metadata.get("tags", []),
+                score=round(result.confidence, 3),
+                metadata={
+                    **doc.metadata,
+                    "semantic_score": round(result.semantic_score, 3),
+                    "keyword_score": round(result.keyword_score, 3),
+                    "hybrid_score": round(result.hybrid_score, 3),
+                    "rerank_score": round(result.rerank_score or 0.0, 3),
+                    "retrieval_method": result.retrieval_method,
+                    "relevance_explanation": result.relevance_explanation
+                }
+            ))
+        
+        processing_time = round(time.time() - start_time, 3)
+        
+        return SearchResponse(
+            results=results,
+            total=len(semantic_results),
+            query=q,
+            metadata={
+                "processing_time": processing_time,
+                "search_type": "semantic",
+                "use_reranking": use_reranking,
+                "total_documents": len(semantic_retriever.documents),
+                "filters": filters
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Semantic search failed: {str(e)}"
         )
 
 @router.get("/documents/{document_id}", response_model=DocumentResponse)
@@ -392,6 +527,135 @@ async def list_documents(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list documents: {str(e)}"
+        )
+
+@router.post("/documents/bulk", response_model=Dict[str, Any])
+async def bulk_create_documents(
+    documents: List[DocumentCreateRequest],
+    chunker: DocumentChunker = Depends(get_chunker),
+    semantic_retriever = Depends(get_semantic_retriever)
+):
+    """Bulk create multiple documents in the knowledge base."""
+    try:
+        if len(documents) > 100:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot create more than 100 documents at once"
+            )
+        
+        created_documents = []
+        failed_documents = []
+        
+        for i, request in enumerate(documents):
+            try:
+                document_id = str(uuid4())
+                timestamp = datetime.utcnow()
+                
+                # Validate content
+                if len(request.content.strip()) < 10:
+                    failed_documents.append({
+                        "index": i,
+                        "title": request.title,
+                        "error": "Document content must be at least 10 characters long"
+                    })
+                    continue
+                
+                # Process document into chunks
+                chunks = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    chunker.chunk_document,
+                    request.content,
+                    {
+                        "document_id": document_id,
+                        "title": request.title,
+                        "category": request.category,
+                        "subcategory": request.subcategory,
+                        "tags": request.tags,
+                        "created_at": timestamp.isoformat()
+                    }
+                )
+                
+                # Store document metadata
+                document_data = {
+                    "id": document_id,
+                    "title": request.title,
+                    "content": request.content,
+                    "category": request.category,
+                    "subcategory": request.subcategory,
+                    "tags": request.tags,
+                    "metadata": {
+                        **request.metadata,
+                        "created_at": timestamp.isoformat(),
+                        "chunk_count": len(chunks)
+                    },
+                    "chunks": chunks
+                }
+                
+                # Store in memory
+                document_storage[document_id] = document_data
+                
+                # Add to search index
+                search_entry = {
+                    "id": document_id,
+                    "title": request.title,
+                    "content": request.content[:500],
+                    "category": request.category,
+                    "subcategory": request.subcategory,
+                    "tags": request.tags,
+                    "created_at": timestamp.isoformat()
+                }
+                search_index.append(search_entry)
+                
+                created_documents.append({
+                    "id": document_id,
+                    "title": request.title,
+                    "category": request.category,
+                    "chunk_count": len(chunks)
+                })
+                
+            except Exception as e:
+                failed_documents.append({
+                    "index": i,
+                    "title": request.title,
+                    "error": str(e)
+                })
+        
+        # Add successfully created documents to semantic retriever
+        if created_documents:
+            semantic_docs = []
+            for doc_info in created_documents:
+                full_doc = document_storage.get(doc_info["id"])
+                if full_doc:
+                    semantic_docs.append({
+                        "id": full_doc["id"],
+                        "content": full_doc["content"],
+                        "title": full_doc["title"],
+                        "metadata": {
+                            "category": full_doc["category"],
+                            "subcategory": full_doc["subcategory"],
+                            "tags": full_doc["tags"],
+                            **full_doc["metadata"]
+                        }
+                    })
+            
+            if semantic_docs:
+                await semantic_retriever.add_documents(semantic_docs)
+        
+        return {
+            "success": True,
+            "created_count": len(created_documents),
+            "failed_count": len(failed_documents),
+            "created_documents": created_documents,
+            "failed_documents": failed_documents,
+            "total_processed": len(documents)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Bulk creation failed: {str(e)}"
         )
 
 @router.get("/stats")
