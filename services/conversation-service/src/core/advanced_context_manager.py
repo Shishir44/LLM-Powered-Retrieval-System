@@ -1,27 +1,28 @@
-from typing import List, Dict, Any, Optional, Tuple
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from langchain.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
-import json
-import asyncio
-from collections import deque
-from .advanced_query_processor import QueryAnalysis, QueryType, QueryComplexity
+"""
+Advanced Context Manager for RAG Pipeline
 
-@dataclass
-class ConversationTurn:
-    """Represents a single turn in conversation."""
-    user_message: str
-    assistant_response: str
-    timestamp: datetime
-    context_used: List[str]
-    retrieval_quality: float
-    user_feedback: Optional[float] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+This module provides sophisticated context management capabilities including:
+- User profile tracking
+- Conversation history management
+- Context optimization for different query types
+"""
+
+from typing import Dict, List, Any, Optional, Deque
+from collections import deque
+from datetime import datetime, timedelta
+from dataclasses import dataclass, field
+from enum import Enum
+import json
+
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+
+from .advanced_query_processor import QueryAnalysis, QueryComplexity
+
 
 @dataclass
 class ContextualInformation:
-    """Structured contextual information for RAG."""
+    """Comprehensive contextual information for RAG responses."""
     primary_context: str
     supporting_context: List[str]
     conversation_history: str
@@ -31,22 +32,311 @@ class ContextualInformation:
     confidence_score: float
     relevance_scores: List[float]
 
+
+@dataclass
+class ConversationTurn:
+    """Represents a single conversation turn."""
+    user_message: str
+    assistant_response: str
+    timestamp: datetime
+    context_used: List[str]
+    retrieval_quality: float
+    user_feedback: Optional[float] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
 class AdvancedContextManager:
-    """Advanced context management with conversation awareness and adaptive context selection."""
+    """Advanced context management with user profiling and optimization."""
     
     def __init__(self, max_conversation_length: int = 20, context_window_tokens: int = 4000):
-        self.conversations: Dict[str, deque] = {}
+        self.conversations: Dict[str, Deque[ConversationTurn]] = {}
         self.user_profiles: Dict[str, Dict[str, Any]] = {}
         self.context_cache: Dict[str, ContextualInformation] = {}
         self.max_conversation_length = max_conversation_length
         self.context_window_tokens = context_window_tokens
         
         # LLM for context optimization
-        self.context_optimizer = ChatOpenAI(model=\"gpt-4o-mini\", temperature=0.1)
+        self.context_optimizer = ChatOpenAI(model="gpt-4o-mini", temperature=0.1)
         
         # Context selection strategies
         self.context_selector = self._create_context_selector()
         self.conversation_summarizer = self._create_conversation_summarizer()
         self.relevance_scorer = self._create_relevance_scorer()
     
-    def _create_context_selector(self):\n        return ChatPromptTemplate.from_messages([\n            (\"system\", \"\"\"You are a context selection expert. Given retrieved documents and a query analysis, \nselect and organize the most relevant context for answering the user's question.\n\nConsider:\n- Query type and complexity\n- User intent and sentiment\n- Conversation history relevance\n- Document relevance scores\n- Temporal relevance\n\nFor each selected piece of context, provide:\n1. The selected text (keep it concise but complete)\n2. Relevance score (0.0-1.0)\n3. Reasoning for selection\n\nReturn a JSON object:\n{\n    \"primary_context\": \"most relevant context\",\n    \"supporting_context\": [\"additional context 1\", \"additional context 2\"],\n    \"relevance_scores\": [0.95, 0.87, 0.76],\n    \"reasoning\": \"explanation of context selection\",\n    \"confidence\": 0.9\n}\"\"\"),\n            (\"human\", \"\"\"Query Analysis: {query_analysis}\n            \nRetrieved Documents:\n{retrieved_documents}\n\nConversation Context:\n{conversation_context}\n\nSelect optimal context:\"\"\")\n        ])\n    \n    def _create_conversation_summarizer(self):\n        return ChatPromptTemplate.from_messages([\n            (\"system\", \"\"\"Summarize the conversation history to provide relevant context for the current query.\n\nCreate a concise summary that includes:\n1. Main topics discussed\n2. User's goals and preferences\n3. Previous questions and answers\n4. Any unresolved issues\n5. User's knowledge level and expertise\n\nKeep the summary focused and under 200 words.\"\"\"),\n            (\"human\", \"\"\"Current Query: {current_query}\n\nConversation History:\n{conversation_history}\n\nProvide summary:\"\"\")\n        ])\n    \n    def _create_relevance_scorer(self):\n        return ChatPromptTemplate.from_messages([\n            (\"system\", \"\"\"Score the relevance of each context piece to the user's query on a scale of 0.0 to 1.0.\n\nConsider:\n- Direct relevance to the question\n- Completeness of information\n- Accuracy and trustworthiness\n- Recency (if time-sensitive)\n- User's expertise level\n\nReturn a JSON array of scores: [0.95, 0.87, 0.76]\"\"\"),\n            (\"human\", \"\"\"Query: {query}\nQuery Analysis: {query_analysis}\n\nContext Pieces:\n{context_pieces}\n\nScore relevance:\"\"\")\n        ])\n    \n    async def build_optimal_context(self, \n                                  conversation_id: str,\n                                  current_message: str,\n                                  query_analysis: QueryAnalysis,\n                                  retrieved_documents: List[Dict[str, Any]],\n                                  user_profile: Optional[Dict[str, Any]] = None) -> ContextualInformation:\n        \"\"\"Build optimal context using advanced selection strategies.\"\"\"\n        \n        # Get conversation history\n        conversation_history = self._get_conversation_summary(conversation_id, current_message)\n        \n        # Update user profile\n        if user_profile:\n            self.user_profiles[conversation_id] = user_profile\n        elif conversation_id not in self.user_profiles:\n            self.user_profiles[conversation_id] = self._infer_user_profile(conversation_id, query_analysis)\n        \n        # Select optimal context based on query analysis\n        context_selection = await self._select_context(\n            query_analysis=query_analysis,\n            retrieved_documents=retrieved_documents,\n            conversation_history=conversation_history\n        )\n        \n        # Build temporal context if needed\n        temporal_context = self._build_temporal_context(query_analysis)\n        \n        # Build domain context\n        domain_context = self._build_domain_context(query_analysis, retrieved_documents)\n        \n        # Create final contextual information\n        contextual_info = ContextualInformation(\n            primary_context=context_selection[\"primary_context\"],\n            supporting_context=context_selection[\"supporting_context\"],\n            conversation_history=conversation_history,\n            user_profile=self.user_profiles[conversation_id],\n            temporal_context=temporal_context,\n            domain_context=domain_context,\n            confidence_score=context_selection[\"confidence\"],\n            relevance_scores=context_selection[\"relevance_scores\"]\n        )\n        \n        # Cache the context for potential reuse\n        cache_key = f\"{conversation_id}_{hash(current_message)}\"\n        self.context_cache[cache_key] = contextual_info\n        \n        return contextual_info\n    \n    async def _select_context(self, \n                            query_analysis: QueryAnalysis,\n                            retrieved_documents: List[Dict[str, Any]],\n                            conversation_history: str) -> Dict[str, Any]:\n        \"\"\"Select optimal context using LLM-based selection.\"\"\"\n        try:\n            # Prepare documents for selection\n            doc_summaries = []\n            for i, doc in enumerate(retrieved_documents[:10]):  # Limit to top 10\n                summary = {\n                    \"id\": i,\n                    \"title\": doc.get(\"title\", \"Untitled\"),\n                    \"content\": doc[\"content\"][:500],  # Limit content length\n                    \"relevance_score\": doc.get(\"score\", 0.0),\n                    \"metadata\": doc.get(\"metadata\", {})\n                }\n                doc_summaries.append(summary)\n            \n            response = await self.context_selector.ainvoke({\n                \"query_analysis\": json.dumps({\n                    \"query\": query_analysis.original_query,\n                    \"type\": query_analysis.query_type.value,\n                    \"complexity\": query_analysis.complexity.value,\n                    \"intent\": query_analysis.intent,\n                    \"keywords\": query_analysis.keywords\n                }),\n                \"retrieved_documents\": json.dumps(doc_summaries, indent=2),\n                \"conversation_context\": conversation_history[:1000]  # Limit context length\n            })\n            \n            return json.loads(response.content)\n            \n        except Exception as e:\n            # Fallback to rule-based selection\n            return self._fallback_context_selection(retrieved_documents, query_analysis)\n    \n    def _fallback_context_selection(self, \n                                   retrieved_documents: List[Dict[str, Any]],\n                                   query_analysis: QueryAnalysis) -> Dict[str, Any]:\n        \"\"\"Fallback context selection using rules.\"\"\"\n        if not retrieved_documents:\n            return {\n                \"primary_context\": \"No relevant information found.\",\n                \"supporting_context\": [],\n                \"relevance_scores\": [],\n                \"confidence\": 0.0\n            }\n        \n        # Simple selection based on scores\n        sorted_docs = sorted(retrieved_documents, key=lambda x: x.get(\"score\", 0), reverse=True)\n        \n        primary_context = sorted_docs[0][\"content\"][:1000]\n        supporting_context = [doc[\"content\"][:500] for doc in sorted_docs[1:3]]\n        relevance_scores = [doc.get(\"score\", 0.5) for doc in sorted_docs[:3]]\n        \n        return {\n            \"primary_context\": primary_context,\n            \"supporting_context\": supporting_context,\n            \"relevance_scores\": relevance_scores,\n            \"confidence\": 0.7\n        }\n    \n    def _get_conversation_summary(self, conversation_id: str, current_message: str) -> str:\n        \"\"\"Get summarized conversation history.\"\"\"\n        if conversation_id not in self.conversations:\n            return \"No previous conversation history.\"\n        \n        history = list(self.conversations[conversation_id])\n        if not history:\n            return \"No previous conversation history.\"\n        \n        # Create simple summary of recent turns\n        recent_turns = history[-5:]  # Last 5 turns\n        summary_parts = []\n        \n        for turn in recent_turns:\n            summary_parts.append(f\"User: {turn.user_message[:100]}...\")\n            summary_parts.append(f\"Assistant: {turn.assistant_response[:100]}...\")\n        \n        return \"\\n\".join(summary_parts)\n    \n    def _infer_user_profile(self, conversation_id: str, query_analysis: QueryAnalysis) -> Dict[str, Any]:\n        \"\"\"Infer user profile from conversation and query analysis.\"\"\"\n        profile = {\n            \"expertise_level\": \"intermediate\",\n            \"preferred_response_style\": \"detailed\",\n            \"interests\": query_analysis.topics,\n            \"conversation_start\": datetime.now(),\n            \"query_patterns\": [query_analysis.query_type.value],\n            \"sentiment_history\": [query_analysis.sentiment],\n            \"urgency_patterns\": [query_analysis.urgency]\n        }\n        \n        # Analyze complexity patterns\n        if query_analysis.complexity in [QueryComplexity.COMPLEX, QueryComplexity.MULTI_STEP]:\n            profile[\"expertise_level\"] = \"advanced\"\n        elif query_analysis.complexity == QueryComplexity.SIMPLE:\n            profile[\"expertise_level\"] = \"beginner\"\n        \n        return profile\n    \n    def _build_temporal_context(self, query_analysis: QueryAnalysis) -> str:\n        \"\"\"Build temporal context if relevant.\"\"\"\n        now = datetime.now()\n        temporal_indicators = [\"recent\", \"latest\", \"current\", \"today\", \"now\", \"new\"]\n        \n        if any(indicator in query_analysis.original_query.lower() for indicator in temporal_indicators):\n            return f\"Current date and time: {now.strftime('%Y-%m-%d %H:%M:%S')}\"\n        \n        return \"\"\n    \n    def _build_domain_context(self, \n                            query_analysis: QueryAnalysis,\n                            retrieved_documents: List[Dict[str, Any]]) -> str:\n        \"\"\"Build domain-specific context.\"\"\"\n        # Extract common domains from documents\n        domains = set()\n        for doc in retrieved_documents[:5]:\n            metadata = doc.get(\"metadata\", {})\n            if \"domain\" in metadata:\n                domains.add(metadata[\"domain\"])\n            if \"category\" in metadata:\n                domains.add(metadata[\"category\"])\n        \n        if domains:\n            return f\"Domain context: {', '.join(domains)}\"\n        \n        return \"\"\n    \n    def add_conversation_turn(self, \n                            conversation_id: str,\n                            user_message: str,\n                            assistant_response: str,\n                            context_used: List[str],\n                            retrieval_quality: float) -> None:\n        \"\"\"Add a conversation turn to history.\"\"\"\n        if conversation_id not in self.conversations:\n            self.conversations[conversation_id] = deque(maxlen=self.max_conversation_length)\n        \n        turn = ConversationTurn(\n            user_message=user_message,\n            assistant_response=assistant_response,\n            timestamp=datetime.now(),\n            context_used=context_used,\n            retrieval_quality=retrieval_quality\n        )\n        \n        self.conversations[conversation_id].append(turn)\n        \n        # Update user profile based on interaction\n        self._update_user_profile(conversation_id, turn)\n    \n    def _update_user_profile(self, conversation_id: str, turn: ConversationTurn) -> None:\n        \"\"\"Update user profile based on conversation turn.\"\"\"\n        if conversation_id not in self.user_profiles:\n            return\n        \n        profile = self.user_profiles[conversation_id]\n        \n        # Update interaction patterns\n        if \"total_interactions\" not in profile:\n            profile[\"total_interactions\"] = 0\n        profile[\"total_interactions\"] += 1\n        \n        # Track average retrieval quality\n        if \"avg_retrieval_quality\" not in profile:\n            profile[\"avg_retrieval_quality\"] = turn.retrieval_quality\n        else:\n            current_avg = profile[\"avg_retrieval_quality\"]\n            total = profile[\"total_interactions\"]\n            profile[\"avg_retrieval_quality\"] = (current_avg * (total - 1) + turn.retrieval_quality) / total\n        \n        # Update last interaction\n        profile[\"last_interaction\"] = turn.timestamp\n    \n    def get_conversation_metrics(self, conversation_id: str) -> Dict[str, Any]:\n        \"\"\"Get metrics for a conversation.\"\"\"\n        if conversation_id not in self.conversations:\n            return {}\n        \n        history = list(self.conversations[conversation_id])\n        if not history:\n            return {}\n        \n        return {\n            \"total_turns\": len(history),\n            \"avg_retrieval_quality\": sum(turn.retrieval_quality for turn in history) / len(history),\n            \"conversation_duration\": (history[-1].timestamp - history[0].timestamp).total_seconds() / 60,  # minutes\n            \"user_satisfaction\": sum(turn.user_feedback or 0.5 for turn in history) / len(history),\n            \"topics_covered\": len(set(turn.metadata.get(\"topic\", \"general\") for turn in history))\n        }\n    \n    def optimize_context_for_model(self, \n                                  contextual_info: ContextualInformation,\n                                  model_context_limit: int = 4000) -> ContextualInformation:\n        \"\"\"Optimize context to fit within model's context window.\"\"\"\n        # Estimate token count (rough approximation: 1 token ≈ 4 characters)\n        def estimate_tokens(text: str) -> int:\n            return len(text) // 4\n        \n        total_tokens = (\n            estimate_tokens(contextual_info.primary_context) +\n            sum(estimate_tokens(ctx) for ctx in contextual_info.supporting_context) +\n            estimate_tokens(contextual_info.conversation_history) +\n            estimate_tokens(contextual_info.temporal_context) +\n            estimate_tokens(contextual_info.domain_context)\n        )\n        \n        if total_tokens <= model_context_limit:\n            return contextual_info\n        \n        # Prioritize context elements\n        # 1. Primary context (highest priority)\n        # 2. Conversation history (medium priority)\n        # 3. Supporting context (lower priority)\n        # 4. Domain/temporal context (lowest priority)\n        \n        available_tokens = model_context_limit\n        \n        # Reserve tokens for primary context (at least 40% of limit)\n        primary_tokens = min(estimate_tokens(contextual_info.primary_context), int(available_tokens * 0.4))\n        contextual_info.primary_context = contextual_info.primary_context[:primary_tokens * 4]\n        available_tokens -= primary_tokens\n        \n        # Reserve tokens for conversation history (up to 30%)\n        if available_tokens > 0:\n            history_tokens = min(estimate_tokens(contextual_info.conversation_history), int(model_context_limit * 0.3))\n            contextual_info.conversation_history = contextual_info.conversation_history[:history_tokens * 4]\n            available_tokens -= history_tokens\n        \n        # Use remaining tokens for supporting context\n        if available_tokens > 0 and contextual_info.supporting_context:\n            tokens_per_support = available_tokens // len(contextual_info.supporting_context)\n            contextual_info.supporting_context = [\n                ctx[:tokens_per_support * 4] for ctx in contextual_info.supporting_context\n            ]\n        \n        # Truncate domain/temporal context if necessary\n        contextual_info.temporal_context = contextual_info.temporal_context[:200]\n        contextual_info.domain_context = contextual_info.domain_context[:200]\n        \n        return contextual_info\n    \n    def clear_conversation(self, conversation_id: str) -> None:\n        \"\"\"Clear conversation history for a given ID.\"\"\"\n        if conversation_id in self.conversations:\n            del self.conversations[conversation_id]\n        if conversation_id in self.user_profiles:\n            del self.user_profiles[conversation_id]\n    \n    def get_active_conversations(self) -> List[str]:\n        \"\"\"Get list of active conversation IDs.\"\"\"\n        # Consider conversations active if they have activity in last 24 hours\n        cutoff = datetime.now() - timedelta(hours=24)\n        active = []\n        \n        for conv_id, turns in self.conversations.items():\n            if turns and turns[-1].timestamp > cutoff:\n                active.append(conv_id)\n        \n        return active"
+    def _create_context_selector(self):
+        return ChatPromptTemplate.from_messages([
+            ("system", """You are a context selection expert. Given retrieved documents and a query analysis, 
+select and organize the most relevant context for answering the user's question.
+
+Return a JSON object:
+{
+    "primary_context": "most relevant context",
+    "supporting_context": ["additional context 1", "additional context 2"],
+    "relevance_scores": [0.95, 0.87, 0.76],
+    "reasoning": "explanation of context selection",
+    "confidence": 0.9
+}"""),
+            ("human", """Query Analysis: {query_analysis}
+            
+Retrieved Documents:
+{retrieved_documents}
+
+Conversation Context:
+{conversation_context}
+
+Select optimal context:""")
+        ])
+    
+    def _create_conversation_summarizer(self):
+        return ChatPromptTemplate.from_messages([
+            ("system", "Summarize the conversation history to provide relevant context for the current query."),
+            ("human", "Current Query: {current_query}\n\nConversation History:\n{conversation_history}\n\nProvide summary:")
+        ])
+    
+    def _create_relevance_scorer(self):
+        return ChatPromptTemplate.from_messages([
+            ("system", "Score the relevance of each context piece to the user's query on a scale of 0.0 to 1.0."),
+            ("human", "Query: {query}\nContext Pieces:\n{context_pieces}\n\nScore relevance:")
+        ])
+    
+    async def build_optimal_context(self, 
+                                  conversation_id: str,
+                                  current_message: str,
+                                  query_analysis: QueryAnalysis,
+                                  retrieved_documents: List[Dict[str, Any]],
+                                  user_profile: Optional[Dict[str, Any]] = None) -> ContextualInformation:
+        """Build optimal context using advanced selection strategies."""
+        
+        # Get conversation history
+        conversation_history = self._get_conversation_summary(conversation_id, current_message)
+        
+        # Update user profile
+        if user_profile:
+            self.user_profiles[conversation_id] = user_profile
+        elif conversation_id not in self.user_profiles:
+            self.user_profiles[conversation_id] = self._infer_user_profile(conversation_id, query_analysis)
+        
+        # Select optimal context based on query analysis
+        context_selection = await self._select_context(
+            query_analysis=query_analysis,
+            retrieved_documents=retrieved_documents,
+            conversation_history=conversation_history
+        )
+        
+        # Build temporal context if needed
+        temporal_context = self._build_temporal_context(query_analysis)
+        
+        # Build domain context
+        domain_context = self._build_domain_context(query_analysis, retrieved_documents)
+        
+        # Create final contextual information
+        contextual_info = ContextualInformation(
+            primary_context=context_selection["primary_context"],
+            supporting_context=context_selection["supporting_context"],
+            conversation_history=conversation_history,
+            user_profile=self.user_profiles[conversation_id],
+            temporal_context=temporal_context,
+            domain_context=domain_context,
+            confidence_score=context_selection["confidence"],
+            relevance_scores=context_selection["relevance_scores"]
+        )
+        
+        # Cache the context for potential reuse
+        cache_key = f"{conversation_id}_{hash(current_message)}"
+        self.context_cache[cache_key] = contextual_info
+        
+        return contextual_info
+    
+    async def _select_context(self, 
+                            query_analysis: QueryAnalysis,
+                            retrieved_documents: List[Dict[str, Any]],
+                            conversation_history: str) -> Dict[str, Any]:
+        """Select optimal context using LLM-based selection."""
+        try:
+            # Prepare documents for selection
+            doc_summaries = []
+            for i, doc in enumerate(retrieved_documents[:10]):  # Limit to top 10
+                summary = {
+                    "id": i,
+                    "title": doc.get("title", "Untitled"),
+                    "content": doc["content"][:500],  # Limit content length
+                    "relevance_score": doc.get("score", 0.0),
+                    "metadata": doc.get("metadata", {})
+                }
+                doc_summaries.append(summary)
+            
+            response = await self.context_selector.ainvoke({
+                "query_analysis": json.dumps({
+                    "query": query_analysis.original_query,
+                    "type": query_analysis.query_type.value,
+                    "complexity": query_analysis.complexity.value,
+                    "intent": query_analysis.intent,
+                    "keywords": query_analysis.keywords
+                }),
+                "retrieved_documents": json.dumps(doc_summaries, indent=2),
+                "conversation_context": conversation_history[:1000]  # Limit context length
+            })
+            
+            return json.loads(response.content)
+            
+        except Exception as e:
+            # Fallback to rule-based selection
+            return self._fallback_context_selection(retrieved_documents, query_analysis)
+    
+    def _fallback_context_selection(self, 
+                                   retrieved_documents: List[Dict[str, Any]],
+                                   query_analysis: QueryAnalysis) -> Dict[str, Any]:
+        """Fallback context selection using rules."""
+        if not retrieved_documents:
+            return {
+                "primary_context": "No relevant information found.",
+                "supporting_context": [],
+                "relevance_scores": [],
+                "confidence": 0.0
+            }
+        
+        # Simple selection based on scores
+        sorted_docs = sorted(retrieved_documents, key=lambda x: x.get("score", 0), reverse=True)
+        
+        primary_context = sorted_docs[0]["content"][:1000]
+        supporting_context = [doc["content"][:500] for doc in sorted_docs[1:3]]
+        relevance_scores = [doc.get("score", 0.5) for doc in sorted_docs[:3]]
+        
+        return {
+            "primary_context": primary_context,
+            "supporting_context": supporting_context,
+            "relevance_scores": relevance_scores,
+            "confidence": 0.7
+        }
+    
+    def _get_conversation_summary(self, conversation_id: str, current_message: str) -> str:
+        """Get summarized conversation history."""
+        if conversation_id not in self.conversations:
+            return "No previous conversation history."
+        
+        history = list(self.conversations[conversation_id])
+        if not history:
+            return "No previous conversation history."
+        
+        # Create simple summary of recent turns
+        recent_turns = history[-5:]  # Last 5 turns
+        summary_parts = []
+        
+        for turn in recent_turns:
+            summary_parts.append(f"User: {turn.user_message[:100]}...")
+            summary_parts.append(f"Assistant: {turn.assistant_response[:100]}...")
+        
+        return "\n".join(summary_parts)
+    
+    def _infer_user_profile(self, conversation_id: str, query_analysis: QueryAnalysis) -> Dict[str, Any]:
+        """Infer user profile from conversation and query analysis."""
+        profile = {
+            "expertise_level": "intermediate",
+            "preferred_response_style": "detailed",
+            "interests": query_analysis.topics,
+            "conversation_start": datetime.now(),
+            "query_patterns": [query_analysis.query_type.value],
+            "sentiment_history": [query_analysis.sentiment],
+            "urgency_patterns": [query_analysis.urgency]
+        }
+        
+        # Analyze complexity patterns
+        if query_analysis.complexity in [QueryComplexity.COMPLEX, QueryComplexity.MULTI_STEP]:
+            profile["expertise_level"] = "advanced"
+        elif query_analysis.complexity == QueryComplexity.SIMPLE:
+            profile["expertise_level"] = "beginner"
+        
+        return profile
+    
+    def _build_temporal_context(self, query_analysis: QueryAnalysis) -> str:
+        """Build temporal context if relevant."""
+        now = datetime.now()
+        temporal_indicators = ["recent", "latest", "current", "today", "now", "new"]
+        
+        if any(indicator in query_analysis.original_query.lower() for indicator in temporal_indicators):
+            return f"Current date and time: {now.strftime('%Y-%m-%d %H:%M:%S')}"
+        
+        return ""
+    
+    def _build_domain_context(self, 
+                            query_analysis: QueryAnalysis,
+                            retrieved_documents: List[Dict[str, Any]]) -> str:
+        """Build domain-specific context."""
+        # Extract common domains from documents
+        domains = set()
+        for doc in retrieved_documents[:5]:
+            metadata = doc.get("metadata", {})
+            if "domain" in metadata:
+                domains.add(metadata["domain"])
+            if "category" in metadata:
+                domains.add(metadata["category"])
+        
+        if domains:
+            return f"Domain context: {', '.join(domains)}"
+        
+        return ""
+    
+    def add_conversation_turn(self, 
+                            conversation_id: str,
+                            user_message: str,
+                            assistant_response: str,
+                            context_used: List[str],
+                            retrieval_quality: float) -> None:
+        """Add a conversation turn to history."""
+        if conversation_id not in self.conversations:
+            self.conversations[conversation_id] = deque(maxlen=self.max_conversation_length)
+        
+        turn = ConversationTurn(
+            user_message=user_message,
+            assistant_response=assistant_response,
+            timestamp=datetime.now(),
+            context_used=context_used,
+            retrieval_quality=retrieval_quality
+        )
+        
+        self.conversations[conversation_id].append(turn)
+        
+        # Update user profile based on interaction
+        self._update_user_profile(conversation_id, turn)
+    
+    def _update_user_profile(self, conversation_id: str, turn: ConversationTurn) -> None:
+        """Update user profile based on conversation turn."""
+        if conversation_id not in self.user_profiles:
+            return
+        
+        profile = self.user_profiles[conversation_id]
+        
+        # Update interaction patterns
+        if "total_interactions" not in profile:
+            profile["total_interactions"] = 0
+        profile["total_interactions"] += 1
+        
+        # Track average retrieval quality
+        if "avg_retrieval_quality" not in profile:
+            profile["avg_retrieval_quality"] = turn.retrieval_quality
+        else:
+            current_avg = profile["avg_retrieval_quality"]
+            total = profile["total_interactions"]
+            profile["avg_retrieval_quality"] = (current_avg * (total - 1) + turn.retrieval_quality) / total
+        
+        # Update last interaction
+        profile["last_interaction"] = turn.timestamp
+    
+    def clear_conversation(self, conversation_id: str) -> None:
+        """Clear conversation history for a given ID."""
+        if conversation_id in self.conversations:
+            del self.conversations[conversation_id]
+        if conversation_id in self.user_profiles:
+            del self.user_profiles[conversation_id]
+    
+    def get_active_conversations(self) -> List[str]:
+        """Get list of active conversation IDs."""
+        # Consider conversations active if they have activity in last 24 hours
+        cutoff = datetime.now() - timedelta(hours=24)
+        active = []
+        
+        for conv_id, turns in self.conversations.items():
+            if turns and turns[-1].timestamp > cutoff:
+                active.append(conv_id)
+        
+        return active

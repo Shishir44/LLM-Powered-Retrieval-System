@@ -29,7 +29,10 @@ class StreamingConversationRequest(BaseModel):
 
 # Initialize components
 # context_manager = ConversationContextManager()  # Removed - using enhanced pipeline directly
-rag_pipeline = EnhancedRAGPipeline()
+import os
+rag_pipeline = EnhancedRAGPipeline(
+    knowledge_base_url=os.getenv("KNOWLEDGE_BASE_SERVICE_URL", "http://localhost:8002")
+)
 streaming_service = StreamingRAGResponse()
 
 @router.post("/chat", response_model=ConversationResponse)

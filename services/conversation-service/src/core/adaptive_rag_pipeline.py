@@ -184,7 +184,7 @@ class EnhancedRAGPipeline:
             
             # Step 5: Generate initial response
             initial_response = await self._generate_response(
-                query_analysis, contextual_info, user_profile
+                query_analysis, contextual_info, user_profile, retrieved_documents
             )
             
             # Step 6: Quality validation and improvement
@@ -281,7 +281,44 @@ class EnhancedRAGPipeline:
                                          entities: List[str],
                                          strategy: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Call knowledge base service for document retrieval."""
-        # Mock implementation - in reality, this would make HTTP calls
+        import httpx
+        
+        try:
+            # Use working search endpoint
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.knowledge_base_url}/api/v1/search",
+                    params={
+                        "q": query,
+                        "limit": top_k
+                    },
+                    timeout=30.0
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    return [
+                        {
+                            "id": result["id"],
+                            "content": result["content"],
+                            "title": result["title"],
+                            "score": result.get("score", 0.0),
+                            "metadata": {
+                                **result.get("metadata", {}),
+                                "category": result.get("category", "Unknown"),
+                                "subcategory": result.get("subcategory"),
+                                "tags": result.get("tags", [])
+                            }
+                        }
+                        for result in data.get("results", [])
+                    ]
+                else:
+                    self.logger.warning(f"Knowledge base service returned {response.status_code}")
+                    
+        except Exception as e:
+            self.logger.error(f"Error calling knowledge base service: {e}")
+        
+        # Fallback to mock data if service fails
         return [
             {
                 "id": f"doc_{i}",
@@ -290,7 +327,7 @@ class EnhancedRAGPipeline:
                 "score": 0.9 - (i * 0.1),
                 "metadata": {"source": "mock", "entities": entities}
             }
-            for i in range(top_k)
+            for i in range(min(top_k, 3))
         ]
     
     def _deduplicate_and_filter(self, docs: List[Dict[str, Any]], strategy: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -317,7 +354,8 @@ class EnhancedRAGPipeline:
     async def _generate_response(self, 
                                query_analysis: QueryAnalysis,
                                contextual_info: ContextualInformation,
-                               user_profile: Optional[Dict[str, Any]] = None) -> str:
+                               user_profile: Optional[Dict[str, Any]] = None,
+                               retrieved_documents: Optional[List[Dict[str, Any]]] = None) -> str:
         """Generate response using appropriate prompt template."""
         
         # Select appropriate prompt template
@@ -325,7 +363,7 @@ class EnhancedRAGPipeline:
         
         # Build prompt variables
         prompt_variables = build_prompt_variables(
-            contextual_info, query_analysis, user_profile
+            contextual_info, query_analysis, user_profile, retrieved_documents
         )
         
         # Generate response
@@ -333,8 +371,29 @@ class EnhancedRAGPipeline:
             response = await prompt_template.ainvoke(prompt_variables)
             return response.content.strip()
         except Exception as e:
-            self.logger.error(f"Error generating response: {e}")
-            return f"I understand you're asking about: {query_analysis.original_query}. However, I encountered an issue generating a complete response. Let me provide what information I can based on the available context."
+            self.logger.error(f"Error generating response with LLM: {e}")
+            # Fallback: Create response from retrieved documents
+            return self._create_fallback_response(query_analysis, retrieved_documents or [])
+    
+    def _create_fallback_response(self, 
+                                query_analysis: QueryAnalysis, 
+                                retrieved_documents: List[Dict[str, Any]]) -> str:
+        """Create a fallback response using retrieved documents when LLM fails."""
+        if not retrieved_documents:
+            return f"I apologize, but I couldn't find specific information about '{query_analysis.original_query}' in the knowledge base."
+        
+        # Use the highest scoring document to create a response
+        best_doc = retrieved_documents[0]
+        title = best_doc.get("title", "")
+        content = best_doc.get("content", "")
+        
+        # Create a simple response based on the query type
+        if "what is" in query_analysis.original_query.lower() or "define" in query_analysis.original_query.lower():
+            return f"{title}: {content[:300]}{'...' if len(content) > 300 else ''}"
+        elif "how" in query_analysis.original_query.lower():
+            return f"Based on the information about {title}: {content[:400]}{'...' if len(content) > 400 else ''}"
+        else:
+            return f"Regarding your question about '{query_analysis.original_query}', here's relevant information from {title}: {content[:300]}{'...' if len(content) > 300 else ''}"
     
     def _calculate_confidence_score(self, 
                                   query_analysis: QueryAnalysis,

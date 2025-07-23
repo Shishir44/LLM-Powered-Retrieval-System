@@ -1,4 +1,5 @@
-from typing import List, Dict, Any, Optional, Tuple, Enum
+from typing import List, Dict, Any, Optional, Tuple
+from enum import Enum
 from dataclasses import dataclass
 from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
