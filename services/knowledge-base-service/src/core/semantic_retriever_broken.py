@@ -39,16 +39,9 @@ class SemanticRetriever:
     """State-of-the-art semantic retrieval system with multiple embedding models and reranking."""
     
     def __init__(self, 
-                 primary_model: str = "all-mpnet-base-v2",  # Upgraded from all-MiniLM-L6-v2
-                 cross_encoder_model: str = "cross-encoder/ms-marco-MiniLM-L-12-v2",  # Upgraded model
-                 use_openai_embeddings: bool = True):  # Enable by default for better performance
-        
-        # Multi-tier embedding strategy
-        self.embedding_models = {
-            "primary": "text-embedding-3-large",
-            "fallback": "all-mpnet-base-v2",
-            "technical": "sentence-transformers/all-MiniLM-L6-v2"  # Keep for speed
-        }
+                 primary_model: str = "all-MiniLM-L6-v2",
+                 cross_encoder_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2",
+                 use_openai_embeddings: bool = True):
         
         # Initialize embedding models
         self.sentence_transformer = SentenceTransformer(primary_model)
@@ -67,16 +60,7 @@ class SemanticRetriever:
         self.documents: List[SemanticDocument] = []
         self.id_to_idx: Dict[str, int] = {}
         
-        # Advanced chunking system
-        from .advanced_chunking import AdvancedDocumentChunker
-        self.chunker = AdvancedDocumentChunker(
-            model_name=primary_model,
-            max_chunk_size=512,
-            overlap_size=100,
-            similarity_threshold=0.8
-        )
-        
-        # Fallback text splitter for chunking
+        # Text splitter for chunking
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=512,
             chunk_overlap=100,
@@ -176,23 +160,35 @@ class SemanticRetriever:
         if not self.documents or self.faiss_index is None:
             return []
         
-        # Search with semantic similarity
-        semantic_results = await self._semantic_search_single(query, top_k * 2)
+        # Expand query if needed
+        expanded_queries = [query]
+        if use_query_expansion:
+            expanded_queries.extend(await self._expand_query(query))
         
-        # Keyword search results
-        keyword_results = await self._keyword_search(query, top_k * 2)
+        # Search with multiple query variations
+        all_results = []
         
-        # Combine and score
-        combined_results = await self._combine_results(
-            semantic_results, keyword_results, query
-        )
+        for exp_query in expanded_queries:
+            # Semantic search results
+            semantic_results = await self._semantic_search_single(exp_query, top_k * 2)
+            
+            # Keyword search results
+            keyword_results = await self._keyword_search(exp_query, top_k * 2)
+            
+            # Combine and score
+            combined_results = await self._combine_results(
+                semantic_results, keyword_results, exp_query
+            )
+            
+            all_results.extend(combined_results)
         
-        # Apply filters if provided
+        # Remove duplicates and apply filters
+        unique_results = self._remove_duplicates(all_results)
         if filters:
-            combined_results = self._apply_filters(combined_results, filters)
+            unique_results = self._apply_filters(unique_results, filters)
         
         # Rerank with cross-encoder
-        reranked_results = await self._rerank_results(query, combined_results)
+        reranked_results = await self._rerank_results(query, unique_results)
         
         # Final scoring and sorting
         final_results = self._final_scoring(reranked_results, query)
@@ -286,7 +282,7 @@ class SemanticRetriever:
             sem_score = semantic_scores.get(idx, 0.0)
             kw_score = keyword_scores.get(idx, 0.0)
             
-            # Normalize scores
+            # Normalize scores (simple min-max normalization)
             sem_score_norm = min(sem_score, 1.0) if sem_score > 0 else 0.0
             kw_score_norm = min(kw_score / 10.0, 1.0) if kw_score > 0 else 0.0
             
@@ -309,105 +305,4 @@ class SemanticRetriever:
     
     async def _rerank_results(self, query: str, results: List[RetrievalResult]) -> List[RetrievalResult]:
         """Rerank results using cross-encoder for better relevance."""
-        if len(results) <= 1:
-            return results
-        
-        try:
-            # Prepare query-document pairs for cross-encoder
-            pairs = [(query, result.document.content) for result in results]
-            
-            # Get rerank scores
-            rerank_scores = self.cross_encoder.predict(pairs)
-            
-            # Update results with rerank scores
-            for result, rerank_score in zip(results, rerank_scores):
-                result.rerank_score = float(rerank_score)
-                result.confidence = (result.hybrid_score + result.rerank_score) / 2
-            
-            return results
-            
-        except Exception as e:
-            self.logger.error(f"Error in reranking: {e}")
-            # Return original results if reranking fails
-            for result in results:
-                result.rerank_score = result.hybrid_score
-                result.confidence = result.hybrid_score
-            return results
-    
-    def _apply_filters(self, results: List[RetrievalResult], filters: Dict[str, Any]) -> List[RetrievalResult]:
-        """Apply metadata filters to results."""
-        filtered_results = []
-        
-        for result in results:
-            include = True
-            metadata = result.document.metadata
-            
-            for key, value in filters.items():
-                if key == "date_range":
-                    # Handle date range filtering
-                    if "created_at" in metadata:
-                        doc_date = metadata["created_at"]
-                        if not (value["start"] <= doc_date <= value["end"]):
-                            include = False
-                            break
-                elif key == "boost_recent":
-                    # Boost recent documents
-                    if result.document.created_at:
-                        days_old = (datetime.now() - result.document.created_at).days
-                        if days_old <= 7:  # Within a week
-                            result.hybrid_score *= 1.2
-                elif key in metadata:
-                    if isinstance(value, list):
-                        if metadata[key] not in value:
-                            include = False
-                            break
-                    else:
-                        if metadata[key] != value:
-                            include = False
-                            break
-            
-            if include:
-                filtered_results.append(result)
-        
-        return filtered_results
-    
-    def _final_scoring(self, results: List[RetrievalResult], query: str) -> List[RetrievalResult]:
-        """Apply final scoring and sort results."""
-        for result in results:
-            # Combine all scores with weights
-            final_score = (
-                0.4 * result.hybrid_score +
-                0.4 * (result.rerank_score or 0.0) +
-                0.2 * result.confidence
-            )
-            
-            # Apply query-specific boosting
-            if query.lower() in result.document.title.lower():
-                final_score *= 1.3  # Title match boost
-            
-            # Apply recency boost for time-sensitive queries
-            if any(word in query.lower() for word in ["recent", "latest", "new", "current"]):
-                if result.document.created_at:
-                    days_old = (datetime.now() - result.document.created_at).days
-                    recency_boost = max(0.8, 1.0 - (days_old / 365))  # Decay over year
-                    final_score *= recency_boost
-            
-            result.confidence = final_score
-        
-        # Sort by final score
-        results.sort(key=lambda x: x.confidence, reverse=True)
-        return results
-    
-    def get_statistics(self) -> Dict[str, Any]:
-        """Get retriever statistics."""
-        return {
-            "total_documents": len(self.documents),
-            "faiss_index_size": self.faiss_index.ntotal if self.faiss_index else 0,
-            "embedding_dimension": self.sentence_transformer.get_sentence_embedding_dimension(),
-            "models_used": {
-                "sentence_transformer": "all-MiniLM-L6-v2",
-                "cross_encoder": "cross-encoder/ms-marco-MiniLM-L-6-v2",
-                "openai_embeddings": "text-embedding-3-large" if self.openai_embeddings else None
-            },
-            "query_expansion_cache_size": len(self.query_expansion_cache)
-        }
+        if len(results) <= 1:\n            return results\n        \n        try:\n            # Prepare query-document pairs for cross-encoder\n            pairs = [(query, result.document.content) for result in results]\n            \n            # Get rerank scores\n            rerank_scores = self.cross_encoder.predict(pairs)\n            \n            # Update results with rerank scores\n            for result, rerank_score in zip(results, rerank_scores):\n                result.rerank_score = float(rerank_score)\n                result.confidence = (result.hybrid_score + result.rerank_score) / 2\n            \n            return results\n            \n        except Exception as e:\n            self.logger.error(f\"Error in reranking: {e}\")\n            # Return original results if reranking fails\n            for result in results:\n                result.rerank_score = result.hybrid_score\n                result.confidence = result.hybrid_score\n            return results\n    \n    def _remove_duplicates(self, results: List[RetrievalResult]) -> List[RetrievalResult]:\n        \"\"\"Remove duplicate documents from results.\"\"\"\n        seen_ids = set()\n        unique_results = []\n        \n        for result in results:\n            if result.document.id not in seen_ids:\n                seen_ids.add(result.document.id)\n                unique_results.append(result)\n        \n        return unique_results\n    \n    def _apply_filters(self, results: List[RetrievalResult], filters: Dict[str, Any]) -> List[RetrievalResult]:\n        \"\"\"Apply metadata filters to results.\"\"\"\n        filtered_results = []\n        \n        for result in results:\n            include = True\n            metadata = result.document.metadata\n            \n            for key, value in filters.items():\n                if key == \"date_range\":\n                    # Handle date range filtering\n                    if \"created_at\" in metadata:\n                        doc_date = metadata[\"created_at\"]\n                        if not (value[\"start\"] <= doc_date <= value[\"end\"]):\n                            include = False\n                            break\n                elif key == \"boost_recent\":\n                    # Boost recent documents\n                    if result.document.created_at:\n                        days_old = (datetime.now() - result.document.created_at).days\n                        if days_old <= 7:  # Within a week\n                            result.hybrid_score *= 1.2\n                elif key in metadata:\n                    if isinstance(value, list):\n                        if metadata[key] not in value:\n                            include = False\n                            break\n                    else:\n                        if metadata[key] != value:\n                            include = False\n                            break\n            \n            if include:\n                filtered_results.append(result)\n        \n        return filtered_results\n    \n    def _final_scoring(self, results: List[RetrievalResult], query: str) -> List[RetrievalResult]:\n        \"\"\"Apply final scoring and sort results.\"\"\"\n        for result in results:\n            # Combine all scores with weights\n            final_score = (\n                0.4 * result.hybrid_score +\n                0.4 * (result.rerank_score or 0.0) +\n                0.2 * result.confidence\n            )\n            \n            # Apply query-specific boosting\n            if query.lower() in result.document.title.lower():\n                final_score *= 1.3  # Title match boost\n            \n            # Apply recency boost for time-sensitive queries\n            if any(word in query.lower() for word in [\"recent\", \"latest\", \"new\", \"current\"]):\n                if result.document.created_at:\n                    days_old = (datetime.now() - result.document.created_at).days\n                    recency_boost = max(0.8, 1.0 - (days_old / 365))  # Decay over year\n                    final_score *= recency_boost\n            \n            result.confidence = final_score\n        \n        # Sort by final score\n        results.sort(key=lambda x: x.confidence, reverse=True)\n        return results\n    \n    async def _expand_query(self, query: str) -> List[str]:\n        \"\"\"Expand query with synonyms and related terms.\"\"\"\n        if query in self.query_expansion_cache:\n            return self.query_expansion_cache[query]\n        \n        # Simple query expansion (in practice, use more sophisticated methods)\n        expanded = []\n        \n        # Add key terms extraction\n        words = query.lower().split()\n        if len(words) > 1:\n            # Add individual important words\n            important_words = [w for w in words if len(w) > 3]\n            if important_words:\n                expanded.append(\" \".join(important_words))\n        \n        # Add question variations\n        if not query.lower().startswith((\"what\", \"how\", \"when\", \"where\", \"why\")):\n            expanded.append(f\"what is {query}\")\n            expanded.append(f\"how to {query}\")\n        \n        # Cache the result\n        self.query_expansion_cache[query] = expanded[:3]  # Limit to 3 expansions\n        return expanded[:3]\n    \n    async def get_similar_documents(self, document_id: str, top_k: int = 5) -> List[RetrievalResult]:\n        \"\"\"Find documents similar to a given document.\"\"\"\n        if document_id not in self.id_to_idx:\n            return []\n        \n        doc_idx = self.id_to_idx[document_id]\n        target_doc = self.documents[doc_idx]\n        \n        # Use the document content as query\n        return await self.semantic_search(\n            target_doc.content[:500],  # Use first 500 chars as query\n            top_k=top_k + 1  # +1 to exclude the source document\n        )\n    \n    def get_statistics(self) -> Dict[str, Any]:\n        \"\"\"Get retriever statistics.\"\"\"\n        return {\n            \"total_documents\": len(self.documents),\n            \"faiss_index_size\": self.faiss_index.ntotal if self.faiss_index else 0,\n            \"embedding_dimension\": self.sentence_transformer.get_sentence_embedding_dimension(),\n            \"models_used\": {\n                \"sentence_transformer\": self.sentence_transformer._modules[\"0\"].auto_model.name_or_path,\n                \"cross_encoder\": self.cross_encoder.model.name_or_path,\n                \"openai_embeddings\": \"text-embedding-3-large\" if self.openai_embeddings else None\n            },\n            \"query_expansion_cache_size\": len(self.query_expansion_cache)\n        }"
