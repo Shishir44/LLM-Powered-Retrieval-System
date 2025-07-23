@@ -1,8 +1,6 @@
 import streamlit as st
 import requests
-import json
-from typing import Dict, List, Optional, Any
-import time
+from typing import Dict, List, Optional
 
 # Configuration
 API_GATEWAY_URL = "http://localhost:8080"
@@ -21,10 +19,10 @@ def check_service_health() -> Dict[str, bool]:
         st.error(f"Failed to check service health: {e}")
         return {}
 
-def create_document(title: str, content: str, category: str, subcategory: str = None, tags: List[str] = None) -> Optional[Dict]:
+def create_document(title: str, content: str, category: str, subcategory: Optional[str] = None, tags: Optional[List[str]] = None) -> Optional[Dict[str, str]]:
     """Create a new document in the knowledge base."""
     try:
-        payload = {
+        payload: Dict[str, str | List[str] | Dict[str, str] | None] = {
             "title": title,
             "content": content,
             "category": category,
@@ -49,10 +47,10 @@ def create_document(title: str, content: str, category: str, subcategory: str = 
         st.error(f"Error creating document: {e}")
         return None
 
-def search_documents(query: str, category: str = None, limit: int = 10) -> Optional[Dict]:
+def search_documents(query: str, category: Optional[str] = None, limit: int = 10) -> Optional[Dict[str, str | int | List[Dict[str, str]]]]:
     """Search documents in the knowledge base."""
     try:
-        params = {
+        params: Dict[str, str | int] = {
             "q": query,
             "limit": limit
         }
@@ -75,7 +73,7 @@ def search_documents(query: str, category: str = None, limit: int = 10) -> Optio
         st.error(f"Error searching documents: {e}")
         return None
 
-def get_document_stats() -> Optional[Dict]:
+def get_document_stats() -> Optional[Dict[str, int | Dict[str, int]]]:
     """Get knowledge base statistics."""
     try:
         response = requests.get(f"{KNOWLEDGE_BASE_URL}/stats", timeout=5)
@@ -88,10 +86,10 @@ def get_document_stats() -> Optional[Dict]:
         st.error(f"Error getting stats: {e}")
         return None
 
-def list_documents(category: str = None, limit: int = 20) -> Optional[Dict]:
+def list_documents(category: Optional[str] = None, limit: int = 20) -> Optional[Dict[str, str | int | List[Dict[str, str | int]]]]:
     """List all documents."""
     try:
-        params = {"limit": limit}
+        params: Dict[str, str | int] = {"limit": limit}
         if category:
             params["category"] = category
             
@@ -110,17 +108,17 @@ def list_documents(category: str = None, limit: int = 20) -> Optional[Dict]:
         st.error(f"Error listing documents: {e}")
         return None
 
-def chat_with_system(message: str, conversation_id: str = None) -> Optional[Dict]:
+def chat_with_system(message: str, conversation_id: Optional[str] = None) -> Optional[Dict[str, str | Dict[str, str]]]:
     """Send a chat message to the conversation service."""
     try:
-        payload = {
+        payload: Dict[str, str | Dict[str, str] | None] = {
             "message": message,
             "conversation_id": conversation_id,
             "context": {}
         }
         
         response = requests.post(
-            f"{CONVERSATION_URL}/api/v1/chat",
+            f"{CONVERSATION_URL}/chat",
             json=payload,
             timeout=30
         )
@@ -193,12 +191,12 @@ def main():
                         title=doc_title,
                         content=doc_content,
                         category=doc_category,
-                        subcategory=doc_subcategory if doc_subcategory else None,
+                        subcategory=doc_subcategory or None,
                         tags=tags_list
                     )
                 
                 if result:
-                    st.success(f"✅ Document created successfully! ID: {result['id']}")
+                    st.success(f"✅ Document created successfully! ID: {result.get('id', 'Unknown')}")
                     st.json(result)
         
         st.divider()
@@ -224,16 +222,22 @@ def main():
                     results = search_documents(search_query, category_filter, search_limit)
                 
                 if results:
-                    st.success(f"Found {results['total']} documents")
+                    total = results.get('total', 0)
+                    st.success(f"Found {total} documents")
                     
-                    for i, doc in enumerate(results['results']):
-                        with st.expander(f"📄 {doc['title']} (Score: {doc.get('score', 'N/A')})"):
-                            st.write(f"**Category:** {doc['category']}")
-                            if doc.get('subcategory'):
-                                st.write(f"**Subcategory:** {doc['subcategory']}")
-                            st.write(f"**Tags:** {', '.join(doc['tags'])}")
-                            st.write(f"**Content:** {doc['content']}")
-                            st.write(f"**ID:** {doc['id']}")
+                    results_list = results.get('results', [])
+                    if isinstance(results_list, list):
+                        for doc in results_list:
+                            if isinstance(doc, dict):
+                                with st.expander(f"📄 {doc.get('title', 'Untitled')} (Score: {doc.get('score', 'N/A')})"):
+                                    st.write(f"**Category:** {doc.get('category', 'Unknown')}")
+                                    if doc.get('subcategory'):
+                                        st.write(f"**Subcategory:** {doc.get('subcategory')}")
+                                    tags = doc.get('tags', [])
+                                    if isinstance(tags, list):
+                                        st.write(f"**Tags:** {', '.join(tags)}")
+                                    st.write(f"**Content:** {doc.get('content', 'No content')}")
+                                    st.write(f"**ID:** {doc.get('id', 'Unknown')}")
     
     # Chat Tab
     with tab2:
@@ -265,16 +269,24 @@ def main():
                 response = chat_with_system(user_message, st.session_state.conversation_id)
             
             if response:
-                st.session_state.conversation_id = response["conversation_id"]
-                st.session_state.chat_history.append({"role": "assistant", "content": response["response"]})
+                conversation_id = response.get("conversation_id")
+                if conversation_id:
+                    st.session_state.conversation_id = conversation_id
+                response_text = response.get("response", "No response")
+                st.session_state.chat_history.append({"role": "assistant", "content": response_text})
         
         # Display chat history
         st.subheader("Chat History")
-        for message in st.session_state.chat_history:
-            if message["role"] == "user":
-                st.chat_message("user").write(message["content"])
-            else:
-                st.chat_message("assistant").write(message["content"])
+        chat_history = st.session_state.get("chat_history", [])
+        if isinstance(chat_history, list):
+            for message in chat_history:
+                if isinstance(message, dict):
+                    role = message.get("role", "unknown")
+                    content = message.get("content", "")
+                    if role == "user":
+                        st.chat_message("user").write(content)
+                    else:
+                        st.chat_message("assistant").write(content)
     
     # Statistics Tab
     with tab3:
@@ -287,19 +299,25 @@ def main():
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    st.metric("Total Documents", stats["total_documents"])
+                    total_docs = stats.get("total_documents", 0)
+                    if isinstance(total_docs, int):
+                        st.metric("Total Documents", total_docs)
                 
                 with col2:
-                    st.metric("Total Chunks", stats["total_chunks"])
+                    total_chunks = stats.get("total_chunks", 0)
+                    if isinstance(total_chunks, int):
+                        st.metric("Total Chunks", total_chunks)
                 
                 with col3:
-                    st.metric("Avg Chunks/Doc", stats["average_chunks_per_document"])
+                    avg_chunks = stats.get("average_chunks_per_document", 0)
+                    if isinstance(avg_chunks, int):
+                        st.metric("Avg Chunks/Doc", avg_chunks)
                 
                 # Category breakdown
-                if stats["categories"]:
+                categories = stats.get("categories")
+                if categories and isinstance(categories, dict):
                     st.subheader("📂 Documents by Category")
-                    category_data = stats["categories"]
-                    st.bar_chart(category_data)
+                    st.bar_chart(categories)
     
     # Document List Tab
     with tab4:
@@ -319,22 +337,32 @@ def main():
                 docs_data = list_documents(category_filter, list_limit)
             
             if docs_data:
-                st.success(f"Loaded {len(docs_data['documents'])} documents (Total: {docs_data['total']})")
+                documents = docs_data.get('documents', [])
+                total = docs_data.get('total', 0)
+                doc_count = len(documents) if isinstance(documents, list) else 0
+                st.success(f"Loaded {doc_count} documents (Total: {total})")
                 
-                for doc in docs_data["documents"]:
-                    with st.expander(f"📄 {doc['title']} ({doc['category']})"):
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            st.write(f"**ID:** {doc['id']}")
-                            st.write(f"**Category:** {doc['category']}")
-                            if doc.get('subcategory'):
-                                st.write(f"**Subcategory:** {doc['subcategory']}")
-                        
-                        with col2:
-                            st.write(f"**Tags:** {', '.join(doc['tags'])}")
-                            st.write(f"**Chunks:** {doc['chunk_count']}")
-                            st.write(f"**Created:** {doc.get('created_at', 'N/A')}")
+                if isinstance(documents, list):
+                    for doc in documents:
+                        if isinstance(doc, dict):
+                            title = doc.get('title', 'Untitled')
+                            category = doc.get('category', 'Unknown')
+                            with st.expander(f"📄 {title} ({category})"):
+                                col1, col2 = st.columns(2)
+                                
+                                with col1:
+                                    st.write(f"**ID:** {doc.get('id', 'Unknown')}")
+                                    st.write(f"**Category:** {category}")
+                                    subcategory = doc.get('subcategory')
+                                    if subcategory:
+                                        st.write(f"**Subcategory:** {subcategory}")
+                                
+                                with col2:
+                                    tags = doc.get('tags', [])
+                                    if isinstance(tags, list):
+                                        st.write(f"**Tags:** {', '.join(tags)}")
+                                    st.write(f"**Chunks:** {doc.get('chunk_count', 0)}")
+                                    st.write(f"**Created:** {doc.get('created_at', 'N/A')}")
 
 if __name__ == "__main__":
     main()
