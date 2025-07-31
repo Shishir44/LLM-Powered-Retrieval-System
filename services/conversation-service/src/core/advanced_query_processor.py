@@ -196,7 +196,7 @@ Return JSON:
         try:
             response = await self.query_expander.ainvoke({
                 "query": query,
-                "context": context[:500]  # Limit context length
+                "context": context[:3000]  # Increased from 500 to 3000
             })
             
             # Parse expanded queries

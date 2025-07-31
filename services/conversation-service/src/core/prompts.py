@@ -1,354 +1,337 @@
 from langchain.prompts import ChatPromptTemplate
 from typing import Dict, Any
 
-# Advanced prompt templates optimized for different query types and contexts
+# PHASE 1.3: Enhanced prompts with citation requirements and confidence scoring
 
 FACTUAL_RAG_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are an expert knowledge assistant specializing in providing accurate, factual information with proper citations.
+    ("system", """You are a precise customer support assistant. Follow these critical rules:
 
-CONTEXT ANALYSIS:
-- Query Type: Factual
-- User Intent: {intent}
-- Expertise Level: {expertise_level}
-- Urgency: {urgency}
+1. ONLY use information from the provided context below
+2. If the context lacks sufficient information, respond: "I don't have enough information to answer that question accurately"
+3. Include source references [Doc-{id}] for ALL factual claims
+4. Express confidence level at the end: [High/Medium/Low Confidence]
+5. Structure responses clearly with proper formatting
 
-RETRIEVED KNOWLEDGE:
+CONTEXT WITH SOURCES:
 {primary_context}
 
 SUPPORTING INFORMATION:
 {supporting_context}
 
-CONVERSATION CONTEXT:
-{conversation_history}
-
-SOURCE DOCUMENTS:
-{source_documents}
-
-RESPONSE GUIDELINES:
-1. Provide direct, accurate answers based ONLY on retrieved knowledge
-2. Include specific facts, data, and evidence from the sources
-3. Structure information clearly with key points
-4. ALWAYS cite sources using [Source: Document Title] format
-5. If information is incomplete, clearly state limitations
-6. Use appropriate technical level for user's expertise
-7. Ground ALL claims in the provided sources - do not add information not found in sources
-8. End response with a "Sources:" section listing all referenced documents
-
-Generate a precise, factual response with proper citations:"""),
+Requirements:
+- Cite sources for every fact: [Doc-123]
+- No speculation beyond provided context
+- Include confidence assessment"""),
     ("human", "{current_message}")
 ])
 
 PROCEDURAL_RAG_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are an expert procedural guide specializing in step-by-step instructions.
+    ("system", """You are a helpful step-by-step assistant. Follow these rules:
 
-CONTEXT ANALYSIS:
-- Query Type: Procedural (How-to)
-- User Intent: {intent}
-- Expertise Level: {expertise_level}
-- Urgency: {urgency}
+1. ONLY use procedures from the provided context
+2. If steps are incomplete, state: "I have partial information but recommend consulting the full documentation"
+3. Include source references [Doc-{id}] for each step
+4. Number steps clearly (1, 2, 3...)
+5. Express confidence level: [High/Medium/Low Confidence]
 
-RETRIEVED KNOWLEDGE:
+CONTEXT WITH SOURCES:
 {primary_context}
 
-SUPPORTING PROCEDURES:
+SUPPORTING INFORMATION:
 {supporting_context}
 
-CONVERSATION CONTEXT:
-{conversation_history}
-
-RESPONSE GUIDELINES:
-1. Provide clear, sequential steps
-2. Include prerequisites and preparation steps
-3. Highlight critical steps or potential issues
-4. Offer troubleshooting tips for common problems
-5. Adapt complexity to user's expertise level
-6. Include verification steps to confirm success
-
-Generate a comprehensive procedural response:"""),
+Format as:
+Step 1: [action] [Doc-123]
+Step 2: [action] [Doc-124]
+...
+Confidence: [High/Medium/Low]"""),
     ("human", "{current_message}")
 ])
 
 ANALYTICAL_RAG_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are an expert analyst specializing in comprehensive analysis and reasoning.
+    ("system", """You are an analytical assistant. Follow these rules:
 
-CONTEXT ANALYSIS:
-- Query Type: Analytical
-- User Intent: {intent}
-- Expertise Level: {expertise_level}
-- Complexity: {complexity}
+1. Base analysis ONLY on the provided context
+2. Clearly distinguish between facts and analysis
+3. Include source references [Doc-{id}] for all supporting data
+4. If analysis requires information not in context, state limitations clearly
+5. Express confidence level: [High/Medium/Low Confidence]
 
-RETRIEVED KNOWLEDGE:
+CONTEXT WITH SOURCES:
 {primary_context}
 
-COMPARATIVE DATA:
+SUPPORTING INFORMATION:
 {supporting_context}
 
-CONVERSATION CONTEXT:
-{conversation_history}
-
-DOMAIN CONTEXT:
-{domain_context}
-
-RESPONSE GUIDELINES:
-1. Provide thorough analysis with multiple perspectives
-2. Include comparisons and contrasts where relevant
-3. Discuss implications and potential outcomes
-4. Present evidence and reasoning clearly
-5. Address potential counterarguments
-6. Conclude with actionable insights
-
-Generate a comprehensive analytical response:"""),
+Structure your analysis:
+- Key Facts: [with citations]
+- Analysis: [based on facts]
+- Limitations: [what's missing]
+- Confidence: [High/Medium/Low]"""),
     ("human", "{current_message}")
 ])
 
 CONVERSATIONAL_RAG_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are a friendly, helpful assistant focused on natural conversation.
+    ("system", """You are a helpful conversational assistant. Follow these rules:
 
-CONTEXT ANALYSIS:
-- Query Type: Conversational
-- User Sentiment: {sentiment}
-- Conversation Flow: {conversation_stage}
+1. Use the provided context to respond naturally
+2. Include source references [Doc-{id}] for factual information
+3. If uncertain, express limitations clearly
+4. Express confidence level: [High/Medium/Low Confidence]
 
-RETRIEVED KNOWLEDGE (if relevant):
+CONTEXT WITH SOURCES:
 {primary_context}
 
-CONVERSATION CONTEXT:
+CONVERSATION HISTORY:
 {conversation_history}
 
-USER PROFILE:
-{user_profile}
+SUPPORTING INFORMATION:
+{supporting_context}
 
-RESPONSE GUIDELINES:
-1. Maintain natural, conversational tone
-2. Show empathy and understanding
-3. Build on previous conversation naturally
-4. Use retrieved knowledge subtly when helpful
-5. Ask engaging follow-up questions
-6. Adapt to user's communication style
-
-Generate a natural, engaging response:"""),
+Respond naturally while citing sources for facts."""),
     ("human", "{current_message}")
 ])
 
 CLARIFICATION_RAG_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are an expert at understanding ambiguous queries and providing clarification.
+    ("system", """You are a clarification assistant. Follow these rules:
 
-CONTEXT ANALYSIS:
-- Query Type: Clarification Request
-- Original Context: {original_context}
-- Ambiguity Level: {ambiguity_level}
+1. Use the provided context to clarify the user's question
+2. Include source references [Doc-{id}] for clarifying information
+3. Ask specific follow-up questions if context is insufficient
+4. Express confidence level: [High/Medium/Low Confidence]
 
-RETRIEVED KNOWLEDGE:
+CONTEXT WITH SOURCES:
 {primary_context}
 
-CONVERSATION CONTEXT:
+PREVIOUS CONVERSATION:
 {conversation_history}
 
-POTENTIAL INTERPRETATIONS:
+SUPPORTING INFORMATION:
 {supporting_context}
 
-RESPONSE GUIDELINES:
-1. Acknowledge the request for clarification
-2. Reference previous conversation context
-3. Provide clear explanations with examples
-4. Offer multiple interpretations if applicable
-5. Ask targeted questions to resolve remaining ambiguity
-6. Ensure understanding before proceeding
-
-Generate a clarifying response:"""),
+Help clarify what the user is asking about."""),
     ("human", "{current_message}")
 ])
 
 MULTI_HOP_RAG_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are an expert at complex reasoning requiring multiple information sources.
+    ("system", """You are a complex reasoning assistant. Follow these rules:
 
-CONTEXT ANALYSIS:
-- Query Type: Multi-hop (Complex Reasoning)
-- Reasoning Steps Required: {reasoning_steps}
-- Information Sources: {num_sources}
+1. Connect information from multiple sources in the context
+2. Include source references [Doc-{id}] for each piece of information
+3. Show your reasoning chain clearly
+4. If connections require assumptions, state them explicitly
+5. Express confidence level: [High/Medium/Low Confidence]
 
-PRIMARY INFORMATION:
+CONTEXT WITH SOURCES:
 {primary_context}
 
-CONNECTED INFORMATION:
+SUPPORTING INFORMATION:
 {supporting_context}
 
-REASONING CHAIN:
-{reasoning_chain}
-
-CONVERSATION CONTEXT:
-{conversation_history}
-
-RESPONSE GUIDELINES:
-1. Break down complex reasoning into clear steps
-2. Connect information from multiple sources
-3. Show logical progression of reasoning
-4. Highlight key connections and relationships
-5. Address each component of the complex query
-6. Synthesize information into coherent conclusion
-
-Generate a comprehensive multi-hop response:"""),
+Format as:
+From [Doc-123]: [fact 1]
+From [Doc-124]: [fact 2]
+Connection: [how facts relate]
+Conclusion: [final answer]
+Confidence: [High/Medium/Low]"""),
     ("human", "{current_message}")
 ])
 
-# Dynamic prompt selector
+# Enhanced specific prompts with citations
+DEFINITION_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", """You are a precise definition assistant. Follow these rules:
+
+1. Define concepts using ONLY the provided context
+2. Include source references [Doc-{id}] for all definitions
+3. If definition is incomplete, state what's missing
+4. Express confidence level: [High/Medium/Low Confidence]
+
+CONTEXT WITH SOURCES:
+{primary_context}
+
+SUPPORTING INFORMATION:
+{supporting_context}
+
+Provide clear, cited definitions."""),
+    ("human", "{current_message}")
+])
+
+COMPARISON_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", """You are a comparison specialist. Follow these rules:
+
+1. Compare items using ONLY information from the provided context
+2. Include source references [Doc-{id}] for each comparison point
+3. Clearly state if information is missing for complete comparison
+4. Express confidence level: [High/Medium/Low Confidence]
+
+CONTEXT WITH SOURCES:
+{primary_context}
+
+SUPPORTING INFORMATION:
+{supporting_context}
+
+Format as:
+Item A: [details] [Doc-123]
+Item B: [details] [Doc-124]
+Key Differences: [with citations]
+Confidence: [High/Medium/Low]"""),
+    ("human", "{current_message}")
+])
+
+PROCESS_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", """You are a process explanation assistant. Follow these rules:
+
+1. Explain processes using ONLY the provided context
+2. Include source references [Doc-{id}] for each process step
+3. If process description is incomplete, clearly state missing parts
+4. Express confidence level: [High/Medium/Low Confidence]
+
+CONTEXT WITH SOURCES:
+{primary_context}
+
+SUPPORTING INFORMATION:
+{supporting_context}
+
+Explain the process step-by-step with proper citations."""),
+    ("human", "{current_message}")
+])
+
+# Updated prompt templates mapping
 PROMPT_TEMPLATES = {
     "factual": FACTUAL_RAG_PROMPT,
     "procedural": PROCEDURAL_RAG_PROMPT,
     "analytical": ANALYTICAL_RAG_PROMPT,
     "conversational": CONVERSATIONAL_RAG_PROMPT,
     "clarification": CLARIFICATION_RAG_PROMPT,
-    "multi_hop": MULTI_HOP_RAG_PROMPT
+    "multi_hop": MULTI_HOP_RAG_PROMPT,
+    "definition": DEFINITION_PROMPT,
+    "comparison": COMPARISON_PROMPT,
+    "process": PROCESS_PROMPT
 }
 
-# Response quality enhancement prompts
-RESPONSE_VALIDATOR_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are a response quality validator. Analyze the generated response for:
-
-1. ACCURACY: Is information factually correct?
-2. COMPLETENESS: Does it fully address the query?
-3. RELEVANCE: Is information directly related to the question?
-4. CLARITY: Is the response clear and well-structured?
-5. APPROPRIATENESS: Is tone and style suitable for the context?
-
-ORIGINAL QUERY: {query}
-GENERATED RESPONSE: {response}
-RETRIEVED CONTEXT: {context}
-
-Rate each aspect (1-5) and provide specific improvement suggestions if needed.
-
-Return JSON format:
-{
-    "accuracy": 4,
-    "completeness": 5,
-    "relevance": 4,
-    "clarity": 5,
-    "appropriateness": 4,
-    "overall_score": 4.4,
-    "suggestions": ["specific improvement 1", "specific improvement 2"],
-    "requires_revision": false
-}"""),
-    ("human", "Validate this response quality.")
-])
-
-RESPONSE_IMPROVER_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are a response improvement specialist. Given a response and quality feedback, create an improved version.
-
-ORIGINAL QUERY: {query}
-ORIGINAL RESPONSE: {response}
-QUALITY FEEDBACK: {feedback}
-ADDITIONAL CONTEXT: {context}
-
-IMPROVEMENT GUIDELINES:
-1. Address specific issues mentioned in feedback
-2. Maintain the core accurate information
-3. Improve structure and clarity
-4. Enhance completeness where needed
-5. Adjust tone if inappropriate
-6. Add missing key information
-
-Generate an improved response:"""),
-    ("human", "Please improve this response based on the feedback.")
-])
-
-# Context optimization prompts
-CONTEXT_OPTIMIZER_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are a context optimization expert. Given multiple context pieces, select and organize the most relevant information for the query.
-
-QUERY ANALYSIS:
-{query_analysis}
-
-AVAILABLE CONTEXT:
-{available_context}
-
-OPTIMIZATION CRITERIA:
-1. Direct relevance to query
-2. Information completeness
-3. Source reliability
-4. Temporal relevance
-5. User expertise level
-
-Select the top 3 most relevant pieces and organize them optimally.
-
-Return JSON:
-{
-    "primary_context": "most relevant context",
-    "supporting_context": ["context2", "context3"],
-    "relevance_scores": [0.95, 0.87, 0.82],
-    "organization_rationale": "explanation"
-}"""),
-    ("human", "Optimize context selection for this query.")
-])
-
-def get_prompt_template(query_type: str) -> ChatPromptTemplate:
-    """Get the appropriate prompt template for the query type."""
+# Enhanced prompt selector with better accuracy focus
+def get_prompt_template(query_type: str, query_text: str = "") -> ChatPromptTemplate:
+    """Get the appropriate prompt template for the query type and content."""
+    
+    # Content-based selection for better accuracy
+    query_lower = query_text.lower()
+    
+    # Definition queries
+    if any(phrase in query_lower for phrase in ["what is", "define", "definition of", "meaning of", "explain what"]):
+        return PROMPT_TEMPLATES["definition"]
+    
+    # Comparison queries
+    if any(phrase in query_lower for phrase in ["vs", "versus", "compared to", "difference between", "compare", "better than"]):
+        return PROMPT_TEMPLATES["comparison"]
+    
+    # Process/How-to queries
+    if any(phrase in query_lower for phrase in ["how does", "how to", "process", "workflow", "steps", "procedure"]):
+        return PROMPT_TEMPLATES["process"]
+    
+    # Procedural queries
+    if any(phrase in query_lower for phrase in ["guide", "tutorial", "instructions", "step by step"]):
+        return PROMPT_TEMPLATES["procedural"]
+    
+    # Default to query type mapping
     return PROMPT_TEMPLATES.get(query_type, FACTUAL_RAG_PROMPT)
 
 def build_prompt_variables(contextual_info, query_analysis, user_profile: Dict[str, Any] = None, retrieved_docs: list = None) -> Dict[str, Any]:
-    """Build variables dictionary for prompt templates."""
+    """Build variables dictionary for prompt templates with enhanced context formatting."""
     user_profile = user_profile or {}
     retrieved_docs = retrieved_docs or []
     
-    # Format source documents for citation
-    source_documents = ""
-    if retrieved_docs:
-        source_documents = "\n".join([
-            f"Document {i+1}: {doc.get('title', 'Untitled')}\n{doc.get('content', '')[:500]}..."
-            for i, doc in enumerate(retrieved_docs[:5])
-        ])
+    # PHASE 1.3: Enhanced context formatting with source citations
+    primary_context = ""
+    if hasattr(contextual_info, 'primary_context') and contextual_info.primary_context:
+        primary_context = _format_context_with_citations(contextual_info.primary_context, retrieved_docs)
+    
+    supporting_context = ""
+    if hasattr(contextual_info, 'supporting_context') and contextual_info.supporting_context:
+        supporting_context = _format_supporting_context_with_citations(contextual_info.supporting_context, retrieved_docs)
+    
+    conversation_history = ""
+    if hasattr(contextual_info, 'conversation_history') and contextual_info.conversation_history:
+        conversation_history = contextual_info.conversation_history
     
     return {
         "current_message": query_analysis.original_query,
-        "intent": query_analysis.intent,
-        "sentiment": query_analysis.sentiment,
-        "urgency": query_analysis.urgency,
-        "complexity": query_analysis.complexity.value,
-        "expertise_level": user_profile.get("expertise_level", "intermediate"),
-        "primary_context": contextual_info.primary_context,
-        "supporting_context": "\n".join(contextual_info.supporting_context),
-        "conversation_history": contextual_info.conversation_history,
-        "domain_context": contextual_info.domain_context,
-        "user_profile": str(user_profile),
-        "source_documents": source_documents,
-        "reasoning_steps": len(query_analysis.expanded_queries),
-        "num_sources": len(contextual_info.supporting_context) + 1,
-        "reasoning_chain": "Step-by-step analysis based on retrieved information",
-        "conversation_stage": "ongoing",
-        "original_context": contextual_info.conversation_history,
-        "ambiguity_level": "medium" if query_analysis.confidence < 0.8 else "low"
+        "primary_context": primary_context,
+        "supporting_context": supporting_context,
+        "conversation_history": conversation_history
     }
 
-# Quality-based response templates
-HIGH_QUALITY_RESPONSE_TEMPLATE = """Based on the retrieved information and our conversation:
+def _format_context_with_citations(context: str, retrieved_docs: list) -> str:
+    """Format context with proper source citations."""
+    if not retrieved_docs:
+        return context
+    
+    # Add document ID citations to context
+    formatted_context = ""
+    for i, doc in enumerate(retrieved_docs[:5]):  # Limit to top 5 docs
+        doc_id = doc.get('id', f'unknown-{i}')
+        doc_content = doc.get('content', '')
+        formatted_context += f"[Doc-{doc_id}]: {doc_content}\n\n"
+    
+    return formatted_context.strip()
 
-## Key Information
-{primary_points}
+def _format_supporting_context_with_citations(supporting_context: list, retrieved_docs: list) -> str:
+    """Format supporting context with citations."""
+    if not supporting_context:
+        return ""
+    
+    formatted = []
+    for i, context_piece in enumerate(supporting_context):
+        if i < len(retrieved_docs):
+            doc_id = retrieved_docs[i].get('id', f'support-{i}')
+            formatted.append(f"[Doc-{doc_id}]: {context_piece}")
+        else:
+            formatted.append(context_piece)
+    
+    return "\n\n".join(formatted)
 
-## Detailed Explanation
-{detailed_explanation}
+# Enhanced validation prompts with stricter requirements
+RESPONSE_VALIDATOR_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", """Evaluate this response for accuracy, citation quality, and anti-hallucination compliance.
 
-## Additional Context
-{supporting_details}
+Query: {query}
+Response: {response}
+Context: {context}
 
-## Next Steps
-{actionable_items}
+Rate each (1-5) and check for:
+1. All facts have source citations [Doc-ID]
+2. No information beyond provided context
+3. Confidence level is included
+4. Claims are verifiable from context
 
-*Confidence Level: {confidence_level}*
-"""
+Return JSON:
+{
+    "accuracy": 4,
+    "citation_quality": 5,
+    "completeness": 5,
+    "clarity": 5,
+    "hallucination_risk": 1,
+    "overall_score": 4.7,
+    "missing_citations": [],
+    "unsupported_claims": [],
+    "needs_improvement": false
+}"""),
+    ("human", "Evaluate this response for accuracy and citation compliance.")
+])
 
-MODERATE_QUALITY_RESPONSE_TEMPLATE = """Here's what I found:
+RESPONSE_IMPROVER_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", """Improve this response to meet citation and accuracy requirements.
 
-{main_response}
+Query: {query}
+Original Response: {response}
+Feedback: {feedback}
+Context: {context}
 
-{additional_info}
+Requirements:
+1. Add [Doc-ID] citations for all facts
+2. Remove any unsupported claims
+3. Add confidence level [High/Medium/Low]
+4. Ensure response stays within context boundaries
 
-Let me know if you need more specific information about any aspect!
-"""
-
-LOW_QUALITY_RESPONSE_TEMPLATE = """I found some relevant information, though it may not be complete:
-
-{available_info}
-
-To provide a better answer, could you help me understand:
-{clarifying_questions}
-"""
+Provide improved version with proper citations and confidence scoring."""),
+    ("human", "Improve this response with proper citations.")
+])

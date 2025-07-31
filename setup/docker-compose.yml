@@ -10,21 +10,51 @@ services:
       - "8002:8002"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - VECTOR_STORE_TYPE=${VECTOR_STORE_TYPE:-pinecone}
-      - PINECONE_API_KEY=${PINECONE_API_KEY}
-      - PINECONE_INDEX_NAME=${PINECONE_INDEX_NAME}
-      - REDIS_URL=redis://redis:6379
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-models/embedding-001}
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-gemini}
+      - USE_GEMINI_EMBEDDINGS=${USE_GEMINI_EMBEDDINGS:-true}
+      - USE_OPENAI_EMBEDDINGS=${USE_OPENAI_EMBEDDINGS:-false}
+      - REDIS_HOST=redis
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=rag_system
+      - POSTGRES_USER=rag_user
+      - POSTGRES_PASSWORD=rag_password
+      # Performance optimizations for large-scale processing
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["*"]
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+      - CHROMA_TELEMETRY_DISABLE=true
+      # Batch processing optimizations
+      - EMBEDDING_BATCH_SIZE=32
+      - MAX_CONCURRENT_REQUESTS=10
+      - QUERY_CACHE_SIZE=1000
+      - EMBEDDING_CACHE_SIZE=5000
+      # Database connection optimizations
+      - DB_POOL_SIZE=20
+      - DB_MAX_OVERFLOW=30
+      - DB_POOL_TIMEOUT=30
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    volumes:
+      - ../vector_database:/app/data
     depends_on:
       - redis
       - postgres
     networks:
       - llm-network
-    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8002/api/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 60s
 
   # Conversation Service
   conversation-service:
@@ -35,11 +65,25 @@ services:
       - "8001:8001"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - KNOWLEDGE_BASE_SERVICE_URL=http://knowledge-base-service:8002
-      - ANALYTICS_SERVICE_URL=http://analytics-service:8005
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-1.5-flash}
+      - PRIMARY_LLM_PROVIDER=${PRIMARY_LLM_PROVIDER:-gemini}
+      - FALLBACK_PROVIDERS=${FALLBACK_PROVIDERS:-openai,anthropic}
+      - ENABLE_FALLBACK=${ENABLE_FALLBACK:-true}
+      - REDIS_URL=redis://redis:6379
+      - POSTGRES_URL=postgresql://postgres:password@postgres:5432/llm_retrieval
+      - KNOWLEDGE_BASE_URL=http://knowledge-base-service:8002
+      - ANALYTICS_URL=http://analytics-service:8005
+      # Enhanced features
+      - ENABLE_FACT_VERIFICATION=true
+      - ENABLE_MULTI_SOURCE_SYNTHESIS=true
+      - CONTEXT_STRATEGY=adaptive
+      - SYNTHESIS_STRATEGY=adaptive
+      - ENABLE_PARALLEL_PROCESSING=true
     depends_on:
+      - redis
+      - postgres
       - knowledge-base-service
-      - analytics-service
     networks:
       - llm-network
     restart: unless-stopped
@@ -146,6 +190,7 @@ volumes:
   redis_data:
   postgres_data:
   grafana_data:
+  chroma_data:
 
 networks:
   llm-network:

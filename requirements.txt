@@ -37,3 +37,11 @@ python-dotenv>=1.0.0
 # 2. Run: cd setup && docker-compose up -d
 # 3. Each service runs in its own container with its own dependencies
 
+# Streamlit UI Requirements
+streamlit>=1.28.0
+requests>=2.31.0
+
+# Multiple LLM Providers (for testing and local development)
+openai>=1.0.0
+anthropic>=0.21.0
+google-generativeai>=0.3.0

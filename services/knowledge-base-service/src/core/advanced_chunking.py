@@ -26,32 +26,35 @@ class DocumentChunk:
     overlapping_windows: List[str] = None
 
 class AdvancedDocumentChunker:
-    """Advanced document chunking with semantic and structure awareness."""
+    """Advanced document chunking optimized for accuracy with larger chunks."""
     
     def __init__(self, 
-                 model_name: str = "all-mpnet-base-v2",
-                 max_chunk_size: int = 512,
-                 overlap_size: int = 64,
-                 similarity_threshold: float = 0.8):
+                 model_name: str = "text-embedding-3-large",  # For compatibility, not used for chunking
+                 max_chunk_size: int = 1024,  # PHASE 1.2: Larger chunks for better context
+                 overlap_size: int = 256,     # PHASE 1.2: Better overlap for context retention
+                 similarity_threshold: float = 0.8):  # Adjusted for larger chunks
         
-        # Initialize components
-        self.sentence_transformer = SentenceTransformer(model_name)
+        # PHASE 1.1: Remove sentence transformer dependency for chunking
+        # Store config but don't initialize sentence transformer
+        self.model_name = model_name
         self.max_chunk_size = max_chunk_size
         self.overlap_size = overlap_size
         self.similarity_threshold = similarity_threshold
         
         # Load spacy model for sentence boundary detection
         try:
+            import spacy
             self.nlp = spacy.load("en_core_web_sm")
-        except OSError:
+        except (OSError, ImportError):
             logging.warning("spaCy model not found. Using simple sentence splitting.")
             self.nlp = None
         
-        # Fallback text splitter
+        # Enhanced text splitter with better separators for larger chunks
         self.fallback_splitter = RecursiveCharacterTextSplitter(
             chunk_size=max_chunk_size,
             chunk_overlap=overlap_size,
-            length_function=len
+            length_function=len,
+            separators=["\n\n\n", "\n\n", "\n", ".", "!", "?", ";", ":", " ", ""]
         )
         
         logging.basicConfig(level=logging.INFO)
@@ -337,7 +340,7 @@ class AdvancedDocumentChunker:
         sentences = self._simple_sentence_split(content)
         
         # Create semantic context (surrounding information)
-        semantic_context = f"{parent_section}: {content[:100]}..." if parent_section else content[:100] + "..."
+        semantic_context = f"{parent_section}: {content[:1000]}..." if parent_section else content[:1000] + "..."  # Increased context length
         
         return DocumentChunk(
             id=f"{doc_id}_chunk_{chunk_index}",
@@ -402,24 +405,22 @@ class AdvancedDocumentChunker:
             return []
         
         # Generate embeddings for sentences
-        sentence_embeddings = self.sentence_transformer.encode(sentences)
+        # sentence_embeddings = self.sentence_transformer.encode(sentences) # Removed sentence transformer
         
         # Group semantically similar sentences
         chunks = []
         current_chunk_sentences = []
-        current_embedding_sum = np.zeros(sentence_embeddings.shape[1])
+        # current_embedding_sum = np.zeros(sentence_embeddings.shape[1]) # Removed sentence transformer
         
-        for i, (sentence, embedding) in enumerate(zip(sentences, sentence_embeddings)):
+        for i, (sentence, embedding) in enumerate(zip(sentences, sentences)): # Simplified embedding
             if not current_chunk_sentences:
                 current_chunk_sentences.append(sentence)
-                current_embedding_sum = embedding
+                # current_embedding_sum = embedding # Removed sentence transformer
                 continue
             
             # Calculate similarity with current chunk
-            current_avg_embedding = current_embedding_sum / len(current_chunk_sentences)
-            similarity = np.dot(current_avg_embedding, embedding) / (
-                np.linalg.norm(current_avg_embedding) * np.linalg.norm(embedding)
-            )
+            # current_avg_embedding = current_embedding_sum / len(current_chunk_sentences) # Removed sentence transformer
+            similarity = 1.0 # Simplified similarity calculation
             
             # Check if we should start a new chunk
             potential_chunk = " ".join(current_chunk_sentences + [sentence])
@@ -439,10 +440,10 @@ class AdvancedDocumentChunker:
                 
                 # Start new chunk
                 current_chunk_sentences = [sentence]
-                current_embedding_sum = embedding
+                # current_embedding_sum = embedding # Removed sentence transformer
             else:
                 current_chunk_sentences.append(sentence)
-                current_embedding_sum += embedding
+                # current_embedding_sum += embedding # Removed sentence transformer
         
         # Add final chunk
         if current_chunk_sentences:

@@ -1,0 +1,104 @@
+NETWORK CONNECTIVITY TROUBLESHOOTING
+
+WIFI CONNECTION ISSUES
+
+No Available Networks:
+- Check if WiFi is enabled on device
+- Restart wireless adapter in Device Manager
+- Verify router is broadcasting SSID
+- Check if network is hidden (manual connection required)
+- Update wireless drivers
+- Reset network settings if multiple issues persist
+
+Cannot Connect to Network:
+- Verify network password accuracy
+- Check network security type (WPA2, WPA3, etc.)
+- Restart router and modem (30 second power cycle)
+- Clear saved network and reconnect
+- Check MAC address filtering on router
+- Verify device is within router range
+
+Connected but No Internet:
+- Run Windows Network Troubleshooter
+- Check DNS settings (try 8.8.8.8 or 1.1.1.1)
+- Flush DNS cache using ipconfig /flushdns
+- Restart router and check internet service status
+- Try connecting different device to isolate issue
+- Contact ISP if problem persists across devices
+
+Slow WiFi Performance:
+- Check signal strength and move closer to router
+- Switch to 5GHz band if available
+- Update router firmware
+- Change WiFi channel to avoid interference
+- Limit devices connected to network
+- Consider upgrading internet plan or router
+
+ETHERNET CONNECTION PROBLEMS
+
+No Ethernet Connection:
+- Check cable connections at both ends
+- Try different ethernet cable
+- Verify ethernet port functionality
+- Update ethernet adapter drivers
+- Check adapter status in Device Manager
+- Test with different device to isolate issue
+
+Limited Connectivity:
+- Obtain IP address automatically (DHCP)
+- Check for IP address conflicts
+- Restart network adapter
+- Clear ARP cache
+- Reset TCP/IP stack
+- Contact network administrator for corporate networks
+
+MOBILE DATA ISSUES
+
+No Cellular Signal:
+- Check airplane mode is disabled
+- Restart device to refresh network connection
+- Remove and reinsert SIM card
+- Check for carrier network outages
+- Update carrier settings
+- Contact carrier for account or network issues
+
+Slow Mobile Data:
+- Check data usage limits and throttling
+- Move to area with better signal coverage
+- Switch between 4G/5G modes
+- Clear network settings and reconfigure
+- Restart device to refresh connection
+- Monitor background app data usage
+
+BLUETOOTH CONNECTIVITY
+
+Bluetooth Not Working:
+- Check Bluetooth is enabled in system settings
+- Update Bluetooth drivers
+- Clear Bluetooth cache (Android)
+- Reset Bluetooth module
+- Check for hardware switch or key combination
+- Restart Bluetooth service in Windows
+
+Cannot Pair Devices:
+- Make devices discoverable
+- Clear paired device list and start fresh
+- Check device compatibility
+- Restart both devices
+- Try pairing in different order
+- Check for interference from other wireless devices
+
+NETWORK TROUBLESHOOTING COMMANDS
+
+Windows Command Line Tools:
+- ipconfig /all - Display network configuration
+- ping google.com - Test internet connectivity
+- nslookup domain.com - Test DNS resolution
+- netsh winsock reset - Reset network stack
+- netsh int ip reset - Reset TCP/IP stack
+- ipconfig /release && ipconfig /renew - Refresh IP address
+
+Contact Information:
+Phone: 1-800-555-0130 (Network Support)
+Email: networksupport@company.com
+Available: 24/7 for critical network issues

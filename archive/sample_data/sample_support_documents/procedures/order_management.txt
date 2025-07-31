@@ -1,0 +1,200 @@
+ORDER MANAGEMENT PROCEDURES
+
+ORDER PLACEMENT PROCESS
+
+Creating an Order:
+1. Browse product catalog or search for specific items
+2. Add desired items to shopping cart
+3. Review cart contents and quantities
+4. Apply any discount codes or gift cards
+5. Proceed to checkout
+6. Enter shipping and billing information
+7. Select shipping method and delivery options
+8. Review order summary and total cost
+9. Complete payment processing
+10. Receive order confirmation via email
+
+Order Confirmation Details:
+- Unique order number assigned
+- Itemized list of products ordered
+- Shipping address and method selected
+- Billing information and payment method
+- Estimated delivery date range
+- Order total including taxes and shipping
+- Customer service contact information
+
+ORDER MODIFICATION
+
+Before Shipment:
+- Orders can be modified within 2 hours of placement
+- Changes allowed: quantities, shipping method, address
+- Cannot change: product selection after processing begins
+- Contact customer service immediately for modifications
+- Additional charges may apply for expedited shipping changes
+
+Modification Process:
+1. Call customer service at 1-800-555-0129
+2. Provide order number and registered email address
+3. Specify desired changes to representative
+4. Confirm any additional charges or refunds
+5. Receive updated order confirmation via email
+
+After Shipment:
+- Product changes require return and reorder process
+- Address changes possible through carrier (fees may apply)
+- Delivery date changes limited to carrier capabilities
+- Contact carrier directly for in-transit modifications
+
+ORDER CANCELLATION
+
+Full Order Cancellation:
+- Available until order enters "Processing" status
+- Automatic refund to original payment method
+- Refund processing time: 3-7 business days
+- Cancellation fee: None for standard cancellations
+
+Partial Order Cancellation:
+- Individual items can be cancelled before processing
+- Remaining items continue normal fulfillment
+- Shipping costs adjusted based on remaining order value
+- Refund issued for cancelled items only
+
+Cancellation After Shipping:
+- Return process required for shipped items
+- Return shipping costs may apply
+- Refund processed after items received and inspected
+- Original shipping costs non-refundable
+
+ORDER TRACKING
+
+Tracking Access Methods:
+- Order tracking page on website
+- Email updates at key milestones
+- SMS notifications (opt-in required)
+- Phone support for tracking assistance
+- Mobile app order status
+
+Order Status Definitions:
+- Order Received: Payment confirmed, order in queue
+- Processing: Order being prepared for shipment
+- Packed: Items packed and ready for carrier pickup
+- Shipped: Package in transit with carrier
+- Out for Delivery: Package on delivery vehicle
+- Delivered: Package successfully delivered
+- Exception: Delivery issue requiring attention
+
+Tracking Information Provided:
+- Current location of package
+- Expected delivery date and time window
+- Delivery attempt history
+- Any delivery exceptions or delays
+- Carrier contact information
+- Delivery confirmation details
+
+ORDER FULFILLMENT
+
+Inventory Management:
+- Real-time inventory updates on website
+- Backorder notification for out-of-stock items
+- Partial shipment options for mixed availability
+- Substitute product offerings when applicable
+- Priority fulfillment for premium customers
+
+Warehouse Processing:
+- Orders processed in chronological order
+- Express orders given priority handling
+- Quality control checks before packaging
+- Accurate picking and packing procedures
+- Barcode scanning for order accuracy
+
+Shipping Preparation:
+- Appropriate packaging selected for item protection
+- Shipping labels generated with accurate information
+- Tracking numbers assigned and communicated
+- Insurance added for high-value shipments
+- Carrier pickup scheduled for timely dispatch
+
+ORDER HISTORY
+
+Account-Based History:
+- Complete order history accessible in customer account
+- Search and filter options available
+- Order details viewable for past purchases
+- Reorder functionality for repeat purchases
+- Download options for record keeping
+
+Guest Order History:
+- Order lookup available with order number and email
+- Limited history without customer account
+- Tracking information accessible via lookup
+- Account creation option to save future orders
+- Order details for warranty and support purposes
+
+Historical Data Includes:
+- Order date and order number
+- Items purchased with quantities and prices
+- Shipping and billing addresses used
+- Payment method and transaction details
+- Delivery confirmation and dates
+- Return and exchange history
+- Customer service interaction notes
+
+SPECIAL ORDER HANDLING
+
+Pre-Orders:
+- Payment authorized at time of pre-order
+- Charged when item becomes available for shipping
+- Email notification when item ships
+- Estimated availability dates provided
+- Cancellation allowed until shipping
+
+Custom Orders:
+- Extended processing time required
+- Non-refundable deposit may be required
+- Detailed specifications confirmed before production
+- Progress updates provided during customization
+- Quality assurance review before shipment
+
+Corporate Orders:
+- Volume pricing available for qualified businesses
+- Net payment terms for approved corporate accounts
+- Dedicated account management for large orders
+- Customized invoicing and purchase order processing
+- Expedited shipping options at corporate rates
+
+Gift Orders:
+- Gift wrapping services available
+- Personalized gift messages included
+- Direct shipping to gift recipient
+- Gift receipt option (pricing removed)
+- Gift return policy applies
+- Holiday delivery guarantees during peak season
+
+PROBLEM RESOLUTION
+
+Common Order Issues:
+- Incorrect item received
+- Missing items from order
+- Damaged items during shipping
+- Delivery to wrong address
+- Quality not as expected
+
+Resolution Process:
+1. Customer reports issue via phone, email, or chat
+2. Order details reviewed and issue documented
+3. Resolution options presented (refund, replacement, store credit)
+4. Return authorization provided if needed
+5. Follow-up to ensure customer satisfaction
+
+Issue Resolution Timeline:
+- Simple issues: Resolved within 24 hours
+- Complex issues: 3-5 business days maximum
+- Replacement orders: Expedited shipping at no charge
+- Refunds: Processed within 5-7 business days
+- Escalation to management for unresolved issues
+
+Customer Service Contacts:
+- Phone: 1-800-555-0129 (Order Management)
+- Email: orders@company.com
+- Live Chat: Available 24/7 on website
+- Hours: Monday-Friday 8 AM - 8 PM EST, Saturday-Sunday 9 AM - 6 PM EST

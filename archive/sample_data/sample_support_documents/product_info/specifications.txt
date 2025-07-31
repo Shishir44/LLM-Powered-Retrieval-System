@@ -1,0 +1,65 @@
+TECHNICAL SPECIFICATIONS
+
+iPhone 15 Pro Specifications:
+- Dimensions: 146.6 x 70.6 x 8.25 mm
+- Weight: 187g
+- Display: 6.1-inch Super Retina XDR OLED
+- Resolution: 2556 x 1179 pixels
+- Processor: A17 Pro chip with 6-core CPU
+- Storage: 128GB/256GB/512GB/1TB
+- RAM: 8GB
+- Rear Camera: 48MP Main, 12MP Ultra Wide, 12MP Telephoto
+- Front Camera: 12MP TrueDepth
+- Video Recording: 4K at 24/25/30/60 fps
+- Operating System: iOS 17
+- Connectivity: 5G, Wi-Fi 6E, Bluetooth 5.3
+- Water Resistance: IP68
+- Charging: USB-C, MagSafe wireless charging
+
+Samsung Galaxy S24 Ultra Specifications:
+- Dimensions: 162.3 x 79.0 x 8.6 mm
+- Weight: 232g
+- Display: 6.8-inch Dynamic AMOLED 2X
+- Resolution: 3120 x 1440 pixels
+- Processor: Snapdragon 8 Gen 3
+- Storage: 256GB/512GB/1TB
+- RAM: 12GB
+- Rear Camera: 200MP Main, 50MP Periscope Telephoto, 10MP Telephoto, 12MP Ultra Wide
+- Front Camera: 12MP
+- Video Recording: 8K at 24/30 fps, 4K at 30/60 fps
+- Operating System: Android 14 with One UI 6.1
+- Connectivity: 5G, Wi-Fi 7, Bluetooth 5.3
+- Water Resistance: IP68
+- Charging: USB-C, wireless charging, reverse wireless charging
+- S Pen: Included
+
+MacBook Pro 16-inch M3 Pro Specifications:
+- Dimensions: 35.57 x 24.81 x 1.68 cm
+- Weight: 2.14 kg
+- Display: 16.2-inch Liquid Retina XDR
+- Resolution: 3456 x 2234 pixels
+- Processor: Apple M3 Pro 11-core CPU, 14-core GPU
+- Memory: 18GB unified memory
+- Storage: 512GB SSD (configurable up to 8TB)
+- Battery: Up to 22 hours wireless web
+- Ports: 3x Thunderbolt 4, HDMI, SDXC card slot, MagSafe 3
+- Operating System: macOS Sonoma
+- Connectivity: Wi-Fi 6E, Bluetooth 5.3
+- Camera: 1080p FaceTime HD camera
+- Audio: Six-speaker sound system, spatial audio
+
+Dell XPS 15 9530 Specifications:
+- Dimensions: 344.72 x 230.14 x 18 mm
+- Weight: Starting at 1.86 kg
+- Display: 15.6-inch InfinityEdge
+- Resolution: 1920 x 1200 or 3456 x 2160 OLED
+- Processor: 13th Gen Intel Core i5-13500H or i7-13700H
+- Memory: Up to 32GB DDR5
+- Storage: Up to 2TB PCIe 4 SSD
+- Graphics: Intel Iris Xe or NVIDIA GeForce RTX 4050/4060/4070
+- Battery: 86Wh
+- Ports: 2x Thunderbolt 4, USB-C 3.2, SD card reader
+- Operating System: Windows 11 Home/Pro
+- Connectivity: Wi-Fi 6E, Bluetooth 5.2
+- Camera: 720p HD webcam
+- Audio: Quad speakers with Waves MaxxAudio Pro

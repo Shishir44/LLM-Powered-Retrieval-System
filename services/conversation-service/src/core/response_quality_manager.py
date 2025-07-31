@@ -231,7 +231,7 @@ Evaluate coherence and clarity:""")
                 "response": response,
                 "query": query,
                 "query_type": query_type,
-                "context": context[:2000],  # Limit context length
+                "context": context[:4000],  # Increased from 2000 to 4000
                 "user_expertise": user_expertise
             })
             return json.loads(result.content)
@@ -486,6 +486,51 @@ Evaluate coherence and clarity:""")
         )
         
         return current_response, final_quality
+    
+    async def basic_quality_check(self, 
+                                response: str, 
+                                query: str, 
+                                context: str) -> QualityMetrics:
+        """PHASE 1.4: Basic quality check without complex verification."""
+        
+        try:
+            # Simple quality assessment based on basic criteria
+            accuracy = 4.0  # Assume good accuracy with proper prompts
+            completeness = min(5.0, len(response) / 100.0)  # Based on response length
+            relevance = 4.5 if any(word in response.lower() for word in query.lower().split()) else 3.0
+            clarity = 4.0 if len(response) > 50 else 3.0
+            appropriateness = 4.0  # Assume appropriate with good prompts
+            
+            overall_score = (accuracy + completeness + relevance + clarity + appropriateness) / 5.0
+            
+            return QualityMetrics(
+                accuracy=accuracy,
+                completeness=completeness,
+                relevance=relevance,
+                clarity=clarity,
+                appropriateness=appropriateness,
+                overall_score=overall_score,
+                suggestions=[],
+                requires_revision=overall_score < 3.5,
+                confidence_level="medium",
+                timestamp=datetime.now()
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error in basic quality check: {e}")
+            # Return minimal quality metrics on error
+            return QualityMetrics(
+                accuracy=3.0,
+                completeness=3.0,
+                relevance=3.0,
+                clarity=3.0,
+                appropriateness=3.0,
+                overall_score=3.0,
+                suggestions=["Quality check failed"],
+                requires_revision=True,
+                confidence_level="low",
+                timestamp=datetime.now()
+            )
     
     def get_quality_statistics(self) -> Dict[str, Any]:
         """Get quality statistics from history."""

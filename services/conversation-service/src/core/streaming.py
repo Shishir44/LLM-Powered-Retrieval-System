@@ -1,40 +1,56 @@
+"""
+Streaming response handler for RAG system.
+"""
+
 import asyncio
-from typing import AsyncGenerator, Any
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-# from .context_manager import ConversationState  # Removed - using direct parameters
+import json
+from typing import AsyncGenerator, Optional
+from .adaptive_rag_pipeline import EnhancedRAGPipeline
+import os
+
 
 class StreamingRAGResponse:
+    """Handles streaming responses for the RAG system."""
+    
     def __init__(self):
-        self.llm = None  # Would be initialized with actual LLM
+        """Initialize the streaming service."""
+        self.rag_pipeline = EnhancedRAGPipeline(
+            knowledge_retriever=None,
+            conversation_context_manager=None,
+            config=None
+        )
     
-    async def stream_response(self, message: str, conversation_id: str = "new_conversation") -> AsyncGenerator[str, None]:
-        """Stream response generation with parallel processing."""
-        # Parallel processing: retrieval + intent classification
-        retrieval_task = asyncio.create_task(self.retrieve_documents(message))
-        intent_task = asyncio.create_task(self.classify_intent(message))
+    async def stream_response(self, message: str, conversation_id: str) -> AsyncGenerator[str, None]:
+        """
+        Stream response chunks for a given message.
         
-        # Get results
-        docs, intent = await asyncio.gather(retrieval_task, intent_task)
-        
-        # Stream response generation
-        if self.llm:
-            async for chunk in self.llm.astream(
-                self.build_prompt(state, docs),
-                callbacks=[StreamingStdOutCallbackHandler()]
-            ):
-                yield chunk.content if hasattr(chunk, 'content') else str(chunk)
-    
-    async def retrieve_documents(self, query: str) -> list:
-        """Retrieve documents for the query."""
-        # This would integrate with knowledge-base service
-        return []
-    
-    async def classify_intent(self, message: str) -> str:
-        """Classify user intent from message."""
-        # Implementation placeholder
-        return "information_request"
-    
-    def build_prompt(self, message: str, docs: list) -> str:
-        """Build prompt for response generation."""
-        # Implementation placeholder
-        return f"User message: {message}"
+        Args:
+            message: User message to process
+            conversation_id: Conversation identifier
+            
+        Yields:
+            Response chunks as strings
+        """
+        try:
+            # Process through enhanced RAG pipeline
+            rag_response = await self.rag_pipeline.process_query(
+                conversation_id=conversation_id,
+                user_message=message,
+                user_profile=None,
+                conversation_context=""
+            )
+            
+            # Get the full response
+            full_response = rag_response.response
+            
+            # Stream the response in chunks
+            chunk_size = 50  # Characters per chunk
+            for i in range(0, len(full_response), chunk_size):
+                chunk = full_response[i:i + chunk_size]
+                yield chunk
+                # Small delay to simulate streaming
+                await asyncio.sleep(0.05)
+                
+        except Exception as e:
+            # Yield error information
+            yield f"Error processing request: {str(e)}"

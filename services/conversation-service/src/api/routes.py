@@ -3,10 +3,15 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 # from ..core.context_manager import ConversationContextManager, ConversationState  # Removed - using enhanced pipeline directly
-from ..core.adaptive_rag_pipeline import EnhancedRAGPipeline
+from ..core.adaptive_rag_pipeline import EnhancedRAGPipeline, HTTPKnowledgeRetriever
 from ..core.streaming import StreamingRAGResponse
+from ..models.requests import ChatRequest, VerificationRequest, SynthesisRequest, ContextRequest
+from ..models.responses import ChatResponse
 
 router = APIRouter()
 
@@ -30,8 +35,16 @@ class StreamingConversationRequest(BaseModel):
 # Initialize components
 # context_manager = ConversationContextManager()  # Removed - using enhanced pipeline directly
 import os
+# Initialize HTTP-based knowledge retriever
+knowledge_base_url = os.getenv("KNOWLEDGE_BASE_URL", "http://knowledge-base-service:8002")
+knowledge_retriever = HTTPKnowledgeRetriever(
+    base_url=knowledge_base_url
+)
+
 rag_pipeline = EnhancedRAGPipeline(
-    knowledge_base_url=os.getenv("KNOWLEDGE_BASE_SERVICE_URL", "http://localhost:8002")
+    knowledge_retriever=knowledge_retriever,
+    conversation_context_manager=None,
+    config=None
 )
 streaming_service = StreamingRAGResponse()
 
@@ -145,7 +158,7 @@ async def delete_conversation(conversation_id: str):
 async def get_pipeline_statistics():
     """Get RAG pipeline performance statistics."""
     try:
-        stats = rag_pipeline.get_pipeline_stats()
+        stats = await rag_pipeline.get_pipeline_stats()
         return {
             "status": "success",
             "statistics": stats,
@@ -172,3 +185,109 @@ async def optimize_pipeline():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to optimize pipeline: {str(e)}"
         )
+
+# Add customer context endpoints
+
+@router.post("/enhanced-chat")
+async def enhanced_chat(request: ChatRequest):
+    """Enhanced chat endpoint with customer context support."""
+    
+    try:
+        # Extract customer ID from request
+        customer_id = getattr(request, 'customer_id', None) or getattr(request, 'user_id', None)
+        
+        # Process query with customer context
+        result = await rag_pipeline.process_query(
+            conversation_id=request.conversation_id,
+            user_message=request.message,
+            user_profile=None,
+            conversation_context=""
+        )
+        
+        # Handle both dict and RAGResponse objects
+        if isinstance(result, dict):
+            return ChatResponse(
+                response=result.get("response", "I apologize, but I encountered an error processing your request."),
+                conversation_id=request.conversation_id,
+                metadata=result.get("metadata", {})
+            )
+        else:
+            return ChatResponse(
+                response=result.response,
+                conversation_id=request.conversation_id,
+                metadata={
+                    "processing_time": result.processing_time,
+                    "confidence_score": result.confidence_score,
+                    "query_analysis": result.query_analysis.__dict__ if hasattr(result.query_analysis, '__dict__') else {},
+                    "quality_metrics": result.quality_metrics.__dict__ if hasattr(result.quality_metrics, '__dict__') else {}
+                }
+        )
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Enhanced chat failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/customers/{customer_id}/profile")
+async def update_customer_profile(
+    customer_id: str,
+    profile_updates: Dict[str, Any]
+):
+    """Update customer profile and preferences."""
+    
+    try:
+        updated_profile = await rag_pipeline.customer_profile_manager.update_profile(
+            customer_id, profile_updates
+        )
+        
+        return {
+            "status": "success",
+            "customer_id": customer_id,
+            "updated_at": updated_profile.updated_at.isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Profile update failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/customers/{customer_id}/context")
+async def get_customer_context(customer_id: str):
+    """Get customer context and preferences."""
+    
+    try:
+        context = await rag_pipeline.customer_profile_manager.analyze_context(customer_id, "")
+        
+        return {
+            "customer_id": customer_id,
+            "context": context
+        }
+        
+    except Exception as e:
+        logger.error(f"Context retrieval failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/customers/{customer_id}/feedback")
+async def record_customer_feedback(
+    customer_id: str,
+    feedback: Dict[str, Any]
+):
+    """Record customer feedback for interaction improvement."""
+    
+    try:
+        # Update satisfaction score and preferences based on feedback
+        satisfaction_score = feedback.get("satisfaction_score")
+        if satisfaction_score is not None:
+            await rag_pipeline.customer_profile_manager.record_interaction(
+                customer_id=customer_id,
+                query=feedback.get("query", ""),
+                response=feedback.get("response", ""),
+                satisfaction_score=satisfaction_score,
+                resolution_status=feedback.get("resolution_status", "resolved")
+            )
+        
+        return {"status": "success", "message": "Feedback recorded"}
+        
+    except Exception as e:
+        logger.error(f"Feedback recording failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

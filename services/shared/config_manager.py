@@ -50,11 +50,14 @@ class RetrievalConfig:
 
 @dataclass
 class ChunkingConfig:
-    """Document chunking configuration."""
-    strategy: str = "semantic_structure"
-    max_chunk_size: int = 512
-    chunk_overlap: int = 100
+    """Chunking configuration - PHASE 1.2 optimized."""
+    strategy: str = "recursive"
+    max_chunk_size: int = 1024  # PHASE 1.2: Better context
+    chunk_overlap: int = 256    # PHASE 1.2: Better overlap
+    min_chunk_size: int = 100
+    respect_sentence_boundaries: bool = True
     similarity_threshold: float = 0.8
+    enable_smart_chunking: bool = True
 
 @dataclass
 class ResponseConfig:
@@ -154,9 +157,23 @@ class DevelopmentConfig:
 @dataclass
 class EnhancedRAGConfig:
     """Complete enhanced RAG system configuration."""
-    # API Keys
+    # API Keys - Multiple LLM Providers
     openai_api_key: str = ""
     openai_model: str = "gpt-4o"
+    
+    # Gemini Configuration
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-1.5-pro"
+    
+    # Anthropic Configuration
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-3-5-sonnet-20241022"
+    
+    # LLM Provider Fallback Configuration
+    primary_llm_provider: str = "gemini"  # primary provider - using Gemini due to OpenAI quota
+    fallback_providers: List[str] = field(default_factory=lambda: ["openai", "anthropic"])
+    enable_fallback: bool = True
+    fallback_timeout: float = 5.0  # seconds before trying fallback
     
     # Component configurations
     vector_db: VectorDatabaseConfig = field(default_factory=VectorDatabaseConfig)
@@ -224,9 +241,24 @@ class ConfigManager:
     def _load_from_env_vars(self):
         """Load configuration from environment variables."""
         
-        # API Keys
+        # API Keys - Multiple LLM Providers
         self.config.openai_api_key = os.getenv("OPENAI_API_KEY", "")
         self.config.openai_model = os.getenv("OPENAI_MODEL", "gpt-4o")
+        
+        # Gemini Configuration
+        self.config.gemini_api_key = os.getenv("GEMINI_API_KEY", "")
+        self.config.gemini_model = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
+        
+        # Anthropic Configuration
+        self.config.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY", "")
+        self.config.anthropic_model = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
+        
+        # LLM Provider Fallback Configuration
+        self.config.primary_llm_provider = os.getenv("PRIMARY_LLM_PROVIDER", "gemini")
+        fallback_providers = os.getenv("FALLBACK_PROVIDERS", "openai,anthropic")
+        self.config.fallback_providers = [provider.strip() for provider in fallback_providers.split(",")]
+        self.config.enable_fallback = os.getenv("ENABLE_FALLBACK", "true").lower() == "true"
+        self.config.fallback_timeout = float(os.getenv("FALLBACK_TIMEOUT", "5.0"))
         
         # Vector Database
         self.config.vector_db.type = os.getenv("VECTOR_DB_TYPE", "chroma").lower()
@@ -243,7 +275,7 @@ class ConfigManager:
         
         # Embeddings
         self.config.embeddings.primary_model = os.getenv("PRIMARY_EMBEDDING_MODEL", "all-mpnet-base-v2")
-        self.config.embeddings.use_openai_embeddings = os.getenv("USE_OPENAI_EMBEDDINGS", "true").lower() == "true"
+        self.config.embeddings.use_openai_embeddings = os.getenv("USE_OPENAI_EMBEDDINGS", "false").lower() == "true"
         self.config.embeddings.openai_embedding_model = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-large")
         self.config.embeddings.cross_encoder_model = os.getenv("CROSS_ENCODER_MODEL", "cross-encoder/ms-marco-MiniLM-L-12-v2")
         self.config.embeddings.spacy_model = os.getenv("SPACY_MODEL", "en_core_web_sm")
@@ -263,8 +295,9 @@ class ConfigManager:
         
         # Chunking
         self.config.chunking.strategy = os.getenv("CHUNKING_STRATEGY", "semantic_structure")
-        self.config.chunking.max_chunk_size = int(os.getenv("MAX_CHUNK_SIZE", "512"))
-        self.config.chunking.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "100"))
+        self.config.chunking.max_chunk_size = int(os.getenv("MAX_CHUNK_SIZE", "1024"))
+        # PHASE 1.2: Update chunking configuration for better accuracy
+        self.config.chunking.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "256"))
         self.config.chunking.similarity_threshold = float(os.getenv("SIMILARITY_THRESHOLD_CHUNKING", "0.8"))
         
         # Response

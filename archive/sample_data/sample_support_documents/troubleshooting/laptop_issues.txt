@@ -1,0 +1,198 @@
+LAPTOP TROUBLESHOOTING GUIDE
+
+LAPTOP WON'T START
+
+Check Power Supply:
+- Ensure power adapter is properly connected
+- Try different power outlet
+- Check for loose connections
+- Look for damage to power cord
+- Test with different compatible charger if available
+
+Battery Issues:
+- Remove battery (if removable) and try powering with AC only
+- Hold power button for 30 seconds to discharge static
+- Reinstall battery and try starting
+- Check battery indicator lights
+
+Hard Reset:
+- Disconnect all external devices
+- Remove battery and AC adapter
+- Hold power button for 15-20 seconds
+- Reconnect AC adapter only and try starting
+- If successful, shut down and reinstall battery
+
+Hardware Check:
+- Listen for fan noise or hard drive sounds
+- Check for POST beeps or error codes
+- Look for indicator lights on laptop
+- Test with external monitor if screen is black
+
+OVERHEATING ISSUES
+
+Cooling System Maintenance:
+- Clean air vents with compressed air
+- Ensure vents are not blocked during use
+- Use laptop on hard, flat surfaces for better airflow
+- Consider laptop cooling pad for heavy use
+
+Performance Management:
+- Lower processor performance in power settings
+- Close unnecessary programs and browser tabs
+- Update device drivers, especially graphics drivers
+- Check task manager for high CPU usage processes
+
+Environment:
+- Use laptop in cool, well-ventilated areas
+- Avoid direct sunlight or heat sources
+- Remove laptop from bags/cases when in use
+- Take breaks during intensive tasks
+
+SLOW PERFORMANCE
+
+Storage Optimization:
+- Run disk cleanup to remove temporary files
+- Uninstall unused programs and applications
+- Move large files to external storage or cloud
+- Maintain at least 15% free disk space
+- Consider upgrading to SSD if using traditional hard drive
+
+Memory Management:
+- Close unused applications and browser tabs
+- Check startup programs and disable unnecessary ones
+- Restart laptop regularly to clear memory
+- Consider upgrading RAM if consistently high usage
+
+Software Updates:
+- Install operating system updates
+- Update device drivers through Device Manager
+- Run antivirus scan to check for malware
+- Reset browser if web browsing is slow
+
+BLUE SCREEN ERRORS (BSOD)
+
+Immediate Actions:
+- Note error code displayed on blue screen
+- Restart computer and see if error repeats
+- Boot into Safe Mode if normal startup fails
+- Check if error occurs with specific software
+
+Common Causes and Solutions:
+- Hardware failure: Run memory diagnostic and hard drive check
+- Driver issues: Update or rollback recently changed drivers
+- Software conflicts: Uninstall recently installed programs
+- Overheating: Check cooling system and clean vents
+
+System Recovery:
+- Use System Restore to revert to earlier working state
+- Run System File Checker (sfc /scannow) in Command Prompt
+- Check Event Viewer for detailed error information
+- Consider clean Windows installation if problems persist
+
+KEYBOARD NOT WORKING
+
+Basic Troubleshooting:
+- Restart laptop to clear temporary software issues
+- Check if specific keys or entire keyboard affected
+- Test keyboard in different applications
+- Try external USB keyboard to isolate issue
+
+Driver and Software:
+- Update keyboard drivers in Device Manager
+- Uninstall and reinstall keyboard drivers
+- Check for Windows updates
+- Disable Filter Keys in Accessibility settings
+
+Hardware Issues:
+- Check for physical damage or debris under keys
+- Ensure keyboard connector is properly seated (if serviceable)
+- Test in BIOS to determine if hardware or software issue
+- Consider professional repair if hardware problem confirmed
+
+WI-FI CONNECTION PROBLEMS
+
+Network Adapter:
+- Enable/disable Wi-Fi adapter in Network settings
+- Update wireless network adapter drivers
+- Run Windows Network Troubleshooter
+- Reset network adapter in Device Manager
+
+Connection Settings:
+- Forget and reconnect to Wi-Fi network
+- Check network password accuracy
+- Disable VPN temporarily if using one
+- Reset TCP/IP stack using Command Prompt
+
+Router Issues:
+- Restart wireless router/modem
+- Move closer to router to test signal strength
+- Check if other devices can connect to same network
+- Update router firmware if connection issues persist
+
+AUDIO PROBLEMS
+
+Volume and Settings:
+- Check system volume levels and mute status
+- Test different audio sources (music, videos, system sounds)
+- Check application-specific volume settings
+- Ensure correct audio output device selected
+
+Driver Issues:
+- Update audio drivers through Device Manager
+- Uninstall and reinstall audio drivers
+- Try generic Windows audio drivers
+- Check manufacturer website for latest drivers
+
+Hardware Testing:
+- Test with headphones or external speakers
+- Check audio jack for damage or debris
+- Try different audio ports if available
+- Test audio in BIOS if available
+
+SCREEN ISSUES
+
+Display Problems:
+- Adjust screen brightness using function keys
+- Check external monitor connection if using one
+- Try different display resolution settings
+- Update graphics drivers
+
+Physical Issues:
+- Check for physical damage to screen
+- Test with external monitor to isolate LCD vs graphics issue
+- Ensure screen hinges are functioning properly
+- Check for loose display cable connections
+
+BATTERY NOT CHARGING
+
+Charging System:
+- Try different power outlet and charging cable
+- Check charging port for damage or debris
+- Verify correct wattage charger for your laptop model
+- Test with compatible charger if available
+
+Battery Health:
+- Check battery health in power settings
+- Calibrate battery by full discharge and recharge cycle
+- Update BIOS/UEFI firmware
+- Consider battery replacement if old or degraded
+
+Power Management:
+- Reset power management settings to default
+- Uninstall and reinstall battery drivers
+- Check for BIOS power management options
+- Disable power-hungry features temporarily
+
+WHEN TO SEEK PROFESSIONAL HELP
+
+Contact technical support if:
+- Hardware damage is visible or suspected
+- Multiple troubleshooting attempts have failed
+- Laptop is under warranty
+- Complex hardware diagnosis needed
+- Data recovery services required
+
+Contact Information:
+Phone: 1-800-555-0126 (Laptop Support)
+Email: laptopsupport@company.com
+Online Chat: Available Monday-Friday 8 AM - 8 PM EST
