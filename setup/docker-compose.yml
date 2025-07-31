@@ -1,0 +1,197 @@
+version: '3.8'
+
+services:
+  # Knowledge Base Service
+  knowledge-base-service:
+    build:
+      context: ../services/knowledge-base-service
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-models/embedding-001}
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-gemini}
+      - USE_GEMINI_EMBEDDINGS=${USE_GEMINI_EMBEDDINGS:-true}
+      - USE_OPENAI_EMBEDDINGS=${USE_OPENAI_EMBEDDINGS:-false}
+      - REDIS_HOST=redis
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=rag_system
+      - POSTGRES_USER=rag_user
+      - POSTGRES_PASSWORD=rag_password
+      # Performance optimizations for large-scale processing
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["*"]
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+      - CHROMA_TELEMETRY_DISABLE=true
+      # Batch processing optimizations
+      - EMBEDDING_BATCH_SIZE=32
+      - MAX_CONCURRENT_REQUESTS=10
+      - QUERY_CACHE_SIZE=1000
+      - EMBEDDING_CACHE_SIZE=5000
+      # Database connection optimizations
+      - DB_POOL_SIZE=20
+      - DB_MAX_OVERFLOW=30
+      - DB_POOL_TIMEOUT=30
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    volumes:
+      - ../vector_database:/app/data
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - llm-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Conversation Service
+  conversation-service:
+    build:
+      context: ../services/conversation-service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-1.5-flash}
+      - PRIMARY_LLM_PROVIDER=${PRIMARY_LLM_PROVIDER:-gemini}
+      - FALLBACK_PROVIDERS=${FALLBACK_PROVIDERS:-openai,anthropic}
+      - ENABLE_FALLBACK=${ENABLE_FALLBACK:-true}
+      - REDIS_URL=redis://redis:6379
+      - POSTGRES_URL=postgresql://postgres:password@postgres:5432/llm_retrieval
+      - KNOWLEDGE_BASE_URL=http://knowledge-base-service:8002
+      - ANALYTICS_URL=http://analytics-service:8005
+      # Enhanced features
+      - ENABLE_FACT_VERIFICATION=true
+      - ENABLE_MULTI_SOURCE_SYNTHESIS=true
+      - CONTEXT_STRATEGY=adaptive
+      - SYNTHESIS_STRATEGY=adaptive
+      - ENABLE_PARALLEL_PROCESSING=true
+    depends_on:
+      - redis
+      - postgres
+      - knowledge-base-service
+    networks:
+      - llm-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Analytics Service
+  analytics-service:
+    build:
+      context: ../services/analytics-service
+      dockerfile: Dockerfile
+    ports:
+      - "8005:8005"
+    networks:
+      - llm-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # API Gateway (using existing or creating new)
+  api-gateway:
+    build:
+      context: ../services/api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - CONVERSATION_SERVICE_URL=http://conversation-service:8001
+      - KNOWLEDGE_BASE_SERVICE_URL=http://knowledge-base-service:8002
+      - ANALYTICS_SERVICE_URL=http://analytics-service:8005
+    depends_on:
+      - conversation-service
+      - knowledge-base-service
+      - analytics-service
+    networks:
+      - llm-network
+    restart: unless-stopped
+
+  # Supporting Infrastructure
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - llm-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5434:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-llm_retrieval}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - llm-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - llm-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - llm-network
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  postgres_data:
+  grafana_data:
+  chroma_data:
+
+networks:
+  llm-network:
+    driver: bridge

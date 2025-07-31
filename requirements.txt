@@ -1,109 +1,47 @@
-aiohappyeyeballs==2.4.4
-aiohttp==3.11.10
-aiosignal==1.3.2
-annotated-types==0.7.0
-anyio==4.7.0
-attrs==24.2.0
-beautifulsoup4==4.12.3
-blis==1.1.0
-catalogue==2.0.10
-certifi==2024.12.14
-charset-normalizer==3.4.0
-click==8.1.7
-cloudpathlib==0.20.0
-colorama==0.4.6
-confection==0.1.5
-cymem==2.0.10
-dataclasses-json==0.6.7
-Deprecated==1.2.15
-dirtyjson==1.0.8
-distro==1.9.0
-faiss-cpu==1.9.0.post1
-fastapi==0.115.6
-filetype==1.2.0
-frozenlist==1.5.0
-fsspec==2024.10.0
-greenlet==3.1.1
-h11==0.14.0
-httpcore==1.0.7
-httpx==0.28.1
-idna==3.10
-Jinja2==3.1.5
-jiter==0.8.2
-joblib==1.4.2
-langcodes==3.5.0
-language_data==1.3.0
-llama-cloud==0.1.6
-llama-index==0.12.5
-llama-index-agent-openai==0.4.0
-llama-index-cli==0.4.0
-llama-index-core==0.12.5
-llama-index-embeddings-openai==0.3.1
-llama-index-indices-managed-llama-cloud==0.6.3
-llama-index-legacy==0.9.48.post4
-llama-index-llms-openai==0.3.10
-llama-index-multi-modal-llms-openai==0.4.0
-llama-index-program-openai==0.3.1
-llama-index-question-gen-openai==0.3.0
-llama-index-readers-file==0.4.1
-llama-index-readers-llama-parse==0.4.0
-llama-index-vector-stores-faiss==0.3.0
-llama-parse==0.5.17
-marisa-trie==1.2.1
-markdown-it-py==3.0.0
-MarkupSafe==3.0.2
-marshmallow==3.23.1
-mdurl==0.1.2
-multidict==6.1.0
-murmurhash==1.0.11
-mypy-extensions==1.0.0
-nest-asyncio==1.6.0
-networkx==3.4.2
-nltk==3.9.1
-numpy==2.2.0
-openai==1.57.4
-packaging==24.2
-pandas==2.2.3
-pillow==11.0.0
-preshed==3.0.9
-propcache==0.2.1
-pydantic==2.10.3
-pydantic_core==2.27.1
-Pygments==2.18.0
-pypdf==5.1.0
-python-dateutil==2.9.0.post0
-python-dotenv==1.0.1
-python-multipart==0.0.19
-pytz==2024.2
-PyYAML==6.0.2
-regex==2024.11.6
-requests==2.32.3
-rich==13.9.4
-setuptools==75.6.0
-shellingham==1.5.4
-six==1.17.0
-smart-open==7.1.0
-sniffio==1.3.1
-soupsieve==2.6
-spacy==3.8.3
-spacy-legacy==3.0.12
-spacy-loggers==1.0.5
-SQLAlchemy==2.0.36
-srsly==2.5.0
-starlette==0.41.3
-striprtf==0.0.26
-tenacity==8.5.0
-thinc==8.3.3
-tiktoken==0.8.0
-tqdm==4.67.1
-typer==0.15.1
-typing-inspect==0.9.0
-typing_extensions==4.12.2
-tzdata==2024.2
-urllib3==2.2.3
-uvicorn==0.33.0
-wasabi==1.1.3
-weasel==0.4.1
-wrapt==1.17.0
-yarl==1.18.3
-streamlit==1.40.2
+# LLM-Powered Retrieval System - Root Requirements
+# This is a meta-requirements file for development setup
+
+# Development and Testing Tools
+pytest>=7.4.3
+pytest-asyncio>=0.23.2
+pytest-cov>=4.1.0
+requests>=2.31.0
+httpx>=0.25.2
+
+# Code Quality Tools
+black>=23.11.0
+isort>=5.12.0
+flake8>=6.1.0
+mypy>=1.7.1
+pre-commit>=3.6.0
+
+# Documentation Tools
+mkdocs>=1.5.0
+mkdocs-material>=9.0.0
+
+# Monitoring and Observability
+prometheus-client>=0.19.0
+
+# Utilities
+python-dotenv>=1.0.0
+
+# Note: 
+# - System tools like curl, jq, docker-compose are installed separately
+# - Individual services have their own requirements.txt files:
+#   - services/knowledge-base-service/requirements.txt
+#   - services/conversation-service/requirements.txt  
+#   - services/analytics-service/requirements.txt
+
+# To set up development environment:
+# 1. Copy setup/.env.example to .env and configure
+# 2. Run: cd setup && docker-compose up -d
+# 3. Each service runs in its own container with its own dependencies
+
+# Streamlit UI Requirements
+streamlit>=1.28.0
+requests>=2.31.0
+
+# Multiple LLM Providers (for testing and local development)
+openai>=1.0.0
+anthropic>=0.21.0
+google-generativeai>=0.3.0

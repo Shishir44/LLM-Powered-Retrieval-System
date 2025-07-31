@@ -1,0 +1,190 @@
+PAYMENT PROCESSING GUIDE
+
+ACCEPTED PAYMENT METHODS
+
+Credit and Debit Cards:
+- Visa (all card types including prepaid)
+- MasterCard (all card types including prepaid)  
+- American Express
+- Discover
+- JCB (for international customers)
+- Minimum order: $5.00
+- Maximum single transaction: $5,000
+
+Digital Wallets:
+- PayPal (includes PayPal Credit)
+- Apple Pay (iOS devices and Safari browser)
+- Google Pay (Android devices and Chrome browser)
+- Samsung Pay (Samsung devices)
+- Shop Pay (Shopify Pay)
+
+Alternative Payment Options:
+- Buy Now, Pay Later through Klarna (4 interest-free payments)
+- Affirm financing (3, 6, 12, or 24 month plans)
+- Gift cards and e-gift cards
+- Store credit from returns
+- Corporate purchase orders (approved business accounts only)
+
+PAYMENT SECURITY
+
+Security Measures:
+- All transactions encrypted with 256-bit SSL
+- PCI DSS Level 1 compliance maintained
+- Tokenization of stored payment information
+- CVV verification required for card transactions
+- Address verification for billing/shipping mismatches
+- Fraud detection monitoring on all transactions
+
+Two-Factor Authentication:
+- Optional 2FA available for account login
+- SMS or email verification for high-value purchases
+- Required for stored payment method changes
+- Automatic trigger for suspicious transaction patterns
+
+Privacy Protection:
+- Payment data never stored on our servers long-term
+- Third-party payment processors handle sensitive data
+- GDPR compliant data handling procedures
+- Regular security audits and penetration testing
+
+PAYMENT PROCESSING TIMELINE
+
+Authorization Process:
+- Credit/Debit cards: Immediate authorization
+- PayPal: Immediate processing
+- Buy now, pay later: Instant approval or denial
+- Gift cards: Real-time balance verification
+
+Charge Timeline:
+- Digital products: Charged immediately upon purchase
+- Physical products: Charged when order ships
+- Pre-orders: Charged when item becomes available
+- Subscription services: Charged on billing cycle date
+
+Failed Payment Resolution:
+- Immediate email notification sent
+- 24-hour grace period to update payment method
+- Order held for 3 business days maximum
+- Automatic cancellation if payment not resolved
+
+INTERNATIONAL PAYMENTS
+
+Supported Currencies:
+- USD (US Dollar) - Primary currency
+- CAD (Canadian Dollar)
+- EUR (Euro)
+- GBP (British Pound)
+- JPY (Japanese Yen)
+- AUD (Australian Dollar)
+
+Currency Conversion:
+- Real-time exchange rates applied
+- Conversion fees may apply (bank dependent)
+- Final charge amount shown before payment confirmation
+- Exchange rate locked at time of purchase
+
+International Card Processing:
+- Visa and MasterCard accepted globally
+- American Express accepted in most countries
+- Discover accepted in US, Canada, and select international locations
+- Additional verification may be required for international cards
+
+BILLING INFORMATION
+
+Required Billing Details:
+- Full name as appears on payment method
+- Complete billing address
+- Phone number (for verification purposes)
+- Email address for receipt and order updates
+
+Address Verification:
+- Billing address must match payment method address
+- AVS (Address Verification System) checks performed
+- Orders may be delayed for address mismatches
+- International addresses verified through postal databases
+
+Tax Calculation:
+- Sales tax calculated based on shipping address
+- Tax rates updated regularly for compliance
+- Tax-exempt status available for qualified organizations
+- VAT included for European Union customers
+
+RECURRING PAYMENTS AND SUBSCRIPTIONS
+
+Subscription Billing:
+- Automatic renewal unless cancelled
+- Charges occur on monthly or annual cycle
+- Email notification sent 7 days before renewal
+- Prorated charges for mid-cycle upgrades
+
+Payment Method Updates:
+- Update payment methods in account settings
+- Changes take effect immediately
+- Previous payment method kept as backup
+- Email confirmation sent for all changes
+
+Cancellation Policy:
+- Cancel subscriptions anytime before next billing cycle
+- No refunds for current billing period (unless policy exception)
+- Service continues until end of paid period
+- Confirmation email sent upon cancellation
+
+PAYMENT DISPUTES AND CHARGEBACKS
+
+Dispute Prevention:
+- Clear product descriptions to avoid confusion
+- Prompt customer service response
+- Detailed order confirmations and receipts
+- Proactive communication about order status
+
+Chargeback Process:
+- Immediate notification when chargeback received
+- Documentation gathered to respond to dispute
+- Customer contacted to resolve issue directly
+- Response submitted to card issuer within required timeframe
+
+Resolution Options:
+- Direct refund to avoid chargeback fees
+- Partial refund for legitimate complaints
+- Store credit offered as alternative
+- Evidence provided to dispute invalid chargebacks
+
+PAYMENT ASSISTANCE
+
+Customer Service Support:
+- Payment specialists available during business hours
+- Phone: 1-800-555-0127 (Payment Support)
+- Email: payments@company.com
+- Live chat available 24/7 for payment issues
+
+Common Payment Issues:
+- Declined cards: Check with bank for authorization
+- Failed payments: Verify billing information accuracy
+- Duplicate charges: Report immediately for investigation
+- International payment issues: Contact specialized support team
+
+Technical Support:
+- Website payment form issues
+- Mobile app payment problems
+- Digital wallet connection errors
+- Browser compatibility for payment processing
+
+PAYMENT RECEIPTS AND RECORDS
+
+Receipt Delivery:
+- Email receipt sent immediately after successful payment
+- PDF receipt attached to confirmation email
+- Receipt accessible in account order history
+- Duplicate receipts available upon request
+
+Tax Documentation:
+- Annual purchase summary available in account
+- Detailed receipts for business expense reporting  
+- Tax-exempt certificates processed for qualified customers
+- Documentation retention for 7 years minimum
+
+Payment History:
+- Complete transaction history in account dashboard
+- Search and filter options available
+- Download options for accounting purposes
+- Payment method tracking for recurring charges

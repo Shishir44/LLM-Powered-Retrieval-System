@@ -1,0 +1,26 @@
+FROM alpine:latest
+
+# Install testing dependencies
+RUN apk add --no-cache \
+    curl \
+    jq \
+    bash \
+    wget \
+    ca-certificates
+
+# Install additional testing tools
+RUN wget -O /usr/local/bin/httpie https://github.com/httpie/httpie/releases/latest/download/http-linux-amd64 && \
+    chmod +x /usr/local/bin/httpie
+
+WORKDIR /app
+
+# Copy test scripts
+COPY test_complete_workflow.sh ./
+COPY load_tests/ ./load_tests/
+
+# Make scripts executable
+RUN chmod +x test_complete_workflow.sh
+RUN chmod +x load_tests/*.sh
+
+# Default command
+CMD ["./test_complete_workflow.sh"]

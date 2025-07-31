@@ -1,0 +1,205 @@
+EMAIL SETUP AND TROUBLESHOOTING
+
+COMMON EMAIL CLIENTS
+
+Microsoft Outlook Setup:
+1. Open Outlook and click "File" > "Add Account"
+2. Enter your email address and click "Connect"
+3. Enter your password when prompted
+4. If automatic setup fails, choose "Manual setup"
+5. Select account type (IMAP recommended for most users)
+6. Enter server settings provided by email provider
+7. Test account settings and click "Done"
+
+Apple Mail Setup:
+1. Open System Preferences > Internet Accounts
+2. Click "Add Account" and select email provider
+3. Enter email address and password
+4. Choose which services to sync (Mail, Contacts, Calendar)
+5. Click "Done" to complete setup
+6. For manual setup, choose "Other Mail Account"
+7. Enter incoming and outgoing server details
+
+Gmail Mobile App:
+1. Download Gmail app from App Store or Play Store
+2. Open app and tap "Add email address"
+3. Select "Google" for Gmail accounts
+4. Enter email and password, follow authentication steps
+5. For other providers, select "Other"
+6. Enter server settings manually if needed
+7. Complete setup and verify email sync
+
+EMAIL SERVER SETTINGS
+
+IMAP Settings (Recommended):
+- Allows access from multiple devices
+- Emails stored on server
+- Changes sync across all devices
+- Better for users with multiple devices
+- Uses more server storage
+
+POP3 Settings:
+- Downloads emails to single device
+- Emails removed from server after download
+- Good for single device access
+- Uses less server storage
+- Limited synchronization between devices
+
+Common Provider Settings:
+Gmail IMAP:
+- Incoming: imap.gmail.com, Port 993, SSL
+- Outgoing: smtp.gmail.com, Port 587, TLS
+- Authentication required for both
+
+Outlook/Hotmail:
+- Incoming: outlook.office365.com, Port 993, SSL
+- Outgoing: smtp-mail.outlook.com, Port 587, TLS
+- Use email address as username
+
+Yahoo Mail:
+- Incoming: imap.mail.yahoo.com, Port 993, SSL
+- Outgoing: smtp.mail.yahoo.com, Port 587, TLS
+- May require app-specific password
+
+COMMON EMAIL PROBLEMS
+
+Cannot Send Emails:
+- Check outgoing server settings (SMTP)
+- Verify authentication is enabled
+- Confirm correct username and password
+- Check if ISP blocks outgoing email ports
+- Try different SMTP port (587 instead of 25)
+- Enable "Less secure app access" for some providers
+
+Cannot Receive Emails:
+- Verify incoming server settings (IMAP/POP3)
+- Check internet connection
+- Confirm email address spelling
+- Look in spam/junk folder
+- Check email quota/storage limits
+- Verify account is active with provider
+
+Authentication Errors:
+- Double-check username and password
+- Use full email address as username
+- Enable two-factor authentication if required
+- Generate app-specific password for secure accounts
+- Check if account is locked or suspended
+- Update email client to latest version
+
+SSL/TLS Certificate Errors:
+- Update email client software
+- Check date and time settings on device
+- Accept certificate temporarily to test
+- Contact email provider about certificate issues
+- Try disabling SSL temporarily (not recommended long-term)
+- Clear email client cache and restart
+
+MOBILE EMAIL ISSUES
+
+iOS Mail Problems:
+- Delete and re-add email account
+- Check iOS version compatibility
+- Verify cellular/WiFi connection
+- Reset network settings if needed
+- Check mail fetch settings (push vs fetch)
+- Restart device to clear temporary issues
+
+Android Email Issues:
+- Clear Gmail app cache and data
+- Check Google account sync settings
+- Verify account permissions for email access
+- Try different email app (Samsung Email, BlueMail)
+- Check power saving modes affecting sync
+- Ensure background app refresh is enabled
+
+Sync Issues:
+- Check sync frequency settings
+- Verify account has proper permissions
+- Look for sync errors in account settings
+- Try manual refresh/sync
+- Check available storage space
+- Remove and re-add account if persistent
+
+EMAIL SECURITY
+
+Two-Factor Authentication:
+- Enable 2FA on email account
+- Use authenticator app instead of SMS when possible
+- Generate app-specific passwords for email clients
+- Keep backup codes in secure location
+- Review and remove unused app passwords
+- Monitor account for unauthorized access
+
+Spam and Phishing Protection:
+- Never click suspicious links in emails
+- Verify sender identity before providing information
+- Check email headers for authenticity
+- Use built-in spam filters
+- Report phishing attempts to provider
+- Keep email client updated with security patches
+
+Password Security:
+- Use strong, unique passwords for email accounts
+- Enable account recovery options (backup email, phone)
+- Change passwords regularly
+- Don't save passwords on shared computers
+- Use password manager for complex passwords
+- Monitor for data breach notifications
+
+BUSINESS EMAIL SETUP
+
+Exchange Server:
+1. Obtain server details from IT administrator
+2. Use Outlook for best compatibility
+3. Enter server name, domain, username, password
+4. Configure security settings as required
+5. Test connection and sync settings
+6. Setup mobile devices with same credentials
+
+G Suite/Google Workspace:
+1. Verify domain ownership with Google
+2. Setup MX records with domain registrar
+3. Create user accounts in admin console
+4. Configure email clients with Gmail settings
+5. Enable two-factor authentication
+6. Setup mobile device management if required
+
+Custom Domain Email:
+- Configure MX records with hosting provider
+- Setup email accounts in hosting control panel
+- Use hosting provider's server settings
+- Consider using email forwarding to major provider
+- Backup email data regularly
+- Monitor email deliverability
+
+TROUBLESHOOTING STEPS
+
+Basic Troubleshooting:
+1. Restart email application
+2. Check internet connection
+3. Verify server settings
+4. Test with webmail interface
+5. Clear application cache
+6. Update email client software
+
+Advanced Troubleshooting:
+1. Check firewall and antivirus settings
+2. Test with different network connection
+3. Use telnet to test server connectivity
+4. Review email client logs for errors
+5. Try different email client
+6. Contact email provider support
+
+When to Contact Support:
+- Server settings confirmed but still not working
+- Error messages that don't match common issues
+- Business email setup requirements
+- Migration from old email system
+- Custom domain email configuration
+
+Contact Information:
+Phone: 1-800-555-0135 (Email Support)
+Email: emailhelp@company.com
+Live Chat: Available for email setup assistance
+Remote Support: Available for complex configurations

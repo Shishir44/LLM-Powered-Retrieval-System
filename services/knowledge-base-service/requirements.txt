@@ -1,0 +1,43 @@
+# Knowledge Base Service Dependencies
+
+# Core Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+
+# LangChain & Vector Stores
+langchain==0.0.340
+langchain-openai==0.0.2
+langchain-google-genai==1.0.1
+langchain-community==0.0.3
+pinecone-client==2.2.4
+weaviate-client==3.25.3
+chromadb==0.4.18
+
+# Enhanced RAG Components
+sentence-transformers==2.2.2
+huggingface-hub==0.17.3
+faiss-cpu==1.7.4
+numpy==1.24.3
+spacy==3.7.2
+
+# Cross-Encoder Reranking
+torch>=1.9.0,<2.1.0
+transformers>=4.21.0,<5.0.0
+
+# Database & Cache
+redis==5.0.1
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+
+# HTTP Client
+httpx==0.25.2
+
+# Utilities
+python-dotenv==1.0.0
+structlog==23.2.0
+tenacity==8.2.3
+
+# Monitoring
+prometheus-client==0.19.0
+psutil==5.9.6

@@ -1,0 +1,100 @@
+version: '3.8'
+
+# Test-specific Docker Compose configuration
+# This extends the main docker-compose.yml with testing services and configurations
+
+services:
+  # Test-specific configurations for existing services
+  knowledge-base-service:
+    environment:
+      - TESTING=true
+      - LOG_LEVEL=DEBUG
+      - CHUNK_SIZE=500  # Smaller chunks for testing
+      - CHUNK_OVERLAP=50
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  conversation-service:
+    environment:
+      - TESTING=true
+      - LOG_LEVEL=DEBUG
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  analytics-service:
+    environment:
+      - TESTING=true
+      - LOG_LEVEL=DEBUG
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # Test runner service
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    depends_on:
+      knowledge-base-service:
+        condition: service_healthy
+      conversation-service:
+        condition: service_healthy
+      analytics-service:
+        condition: service_healthy
+    environment:
+      - KB_SERVICE_URL=http://knowledge-base-service:8002
+      - CONV_SERVICE_URL=http://conversation-service:8001
+      - ANALYTICS_SERVICE_URL=http://analytics-service:8005
+    volumes:
+      - .:/app/tests
+    command: ["./test_complete_workflow.sh"]
+    networks:
+      - llm-network
+
+  # Load testing service
+  load-tester:
+    image: alpine:latest
+    depends_on:
+      - knowledge-base-service
+      - conversation-service
+      - analytics-service
+    volumes:
+      - ./load_tests:/tests
+    command: ["sh", "/tests/run_load_tests.sh"]
+    networks:
+      - llm-network
+
+  # Test database (separate from production)
+  test-postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=test_llm_retrieval
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+    tmpfs:
+      - /var/lib/postgresql/data  # In-memory database for testing
+    networks:
+      - llm-network
+
+  # Test cache
+  test-redis:
+    image: redis:7-alpine
+    tmpfs:
+      - /data  # In-memory cache for testing
+    networks:
+      - llm-network
+
+networks:
+  llm-network:
+    external: true
