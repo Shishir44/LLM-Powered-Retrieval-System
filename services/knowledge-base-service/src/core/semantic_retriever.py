@@ -154,6 +154,9 @@ class SemanticRetriever:
         # Initialize ChromaDB regardless of embedding provider
         self._init_chromadb()
         
+        # Initialize cross-encoder after all components
+        self._init_cross_encoder()
+        
         # Initialize other components
         self._init_other_components()
     
@@ -302,6 +305,9 @@ class SemanticRetriever:
         else:
             raise RuntimeError("No embedding model available (sentence_transformers not installed)")
         
+    
+    def _init_cross_encoder(self):
+        """Initialize cross-encoder for reranking after all other components are ready."""
         # Cross-encoder for reranking only
         if SENTENCE_TRANSFORMERS_AVAILABLE:
             try:
@@ -716,8 +722,15 @@ class SemanticRetriever:
             results = []
             for idx, doc in enumerate(self.documents):
                 if doc.embedding is not None:
-                    # Calculate cosine similarity
-                    similarity = np.dot(query_embedding, doc.embedding)
+                    # Check dimension compatibility
+                    if query_embedding.shape != doc.embedding.shape:
+                        self.logger.warning(f"Dimension mismatch: query {query_embedding.shape} vs doc {doc.embedding.shape}. Skipping document {doc.id}")
+                        continue
+                    
+                    # Calculate normalized cosine similarity
+                    query_norm = query_embedding / (np.linalg.norm(query_embedding) + 1e-8)
+                    doc_norm = doc.embedding / (np.linalg.norm(doc.embedding) + 1e-8)
+                    similarity = np.dot(query_norm, doc_norm)
                     results.append((idx, float(similarity)))
             
             # Sort by similarity
@@ -818,8 +831,9 @@ class SemanticRetriever:
             return results
         
         try:
-            if not self.cross_encoder:
+            if not hasattr(self, 'cross_encoder') or not self.cross_encoder:
                 # No cross-encoder available, return original results
+                self.logger.debug("Cross-encoder not available, skipping reranking")
                 for result in results:
                     result.rerank_score = result.hybrid_score
                     result.confidence = result.hybrid_score
