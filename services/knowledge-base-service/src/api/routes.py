@@ -98,6 +98,18 @@ def get_semantic_retriever() -> SemanticRetriever:
         semantic_retriever = SemanticRetriever(config=config)
     return semantic_retriever
 
+def _ensure_tags_list(tags):
+    """Ensure tags are always returned as a list, handling string conversions."""
+    if isinstance(tags, list):
+        return tags
+    elif isinstance(tags, str):
+        if not tags:
+            return []
+        # Handle comma-separated tags or single tag
+        return [tag.strip() for tag in tags.split(",") if tag.strip()]
+    else:
+        return []
+
 # PHASE 2.2: Initialize structured document processor
 try:
     structured_processor = StructuredDocumentProcessor(enable_nlp=True)
@@ -438,7 +450,7 @@ async def search_documents(
                 "content": doc.content,  # Return full content without truncation
                 "category": doc.metadata.get("category", ""),
                 "subcategory": doc.metadata.get("subcategory"),
-                "tags": doc.metadata.get("tags", []),
+                "tags": _ensure_tags_list(doc.metadata.get("tags", [])),
                 "score": result.hybrid_score if hasattr(result, 'hybrid_score') else result.semantic_score,
                 "metadata": {
                     "similarity_score": result.semantic_score,
@@ -767,7 +779,7 @@ async def list_documents(
                         "title": full_doc["title"],
                         "category": full_doc["category"],
                         "subcategory": full_doc["subcategory"],
-                        "tags": full_doc["tags"],
+                        "tags": _ensure_tags_list(full_doc["tags"]),
                         "created_at": full_doc["metadata"].get("created_at"),
                         "content_length": len(full_doc.get("content", "")),
                         "metadata": full_doc.get("metadata", {})
@@ -779,7 +791,7 @@ async def list_documents(
                         "title": doc_summary.get("title", "Unknown"),
                         "category": doc_summary.get("category", ""),
                         "subcategory": doc_summary.get("subcategory", ""),
-                        "tags": doc_summary.get("tags", []),
+                        "tags": _ensure_tags_list(doc_summary.get("tags", [])),
                         "created_at": doc_summary.get("created_at"),
                         "content_length": len(doc_summary.get("content", "")),
                         "metadata": {}
