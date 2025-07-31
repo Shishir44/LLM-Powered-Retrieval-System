@@ -62,11 +62,11 @@ class RerankingConfig:
 
 @dataclass
 class ChunkingConfig:
-    """Configuration for document chunking - OPTIMIZED FOR ACCURACY."""
+    """Configuration for document chunking - OPTIMIZED FOR PERFORMANCE."""
     strategy: str = "semantic_structure"
-    # PHASE 1.2: Larger chunks for better context retention
-    max_chunk_size: int = 1024  # Increased from 512
-    chunk_overlap: int = 256    # Increased from 100
+    # PERFORMANCE OPTIMIZATION: Smaller chunks for better processing speed
+    max_chunk_size: int = 512   # Reduced from 1024 for better performance
+    chunk_overlap: int = 128    # Reduced from 256 for better performance
     similarity_threshold: float = 0.8
     spacy_model: str = "en_core_web_sm"
 

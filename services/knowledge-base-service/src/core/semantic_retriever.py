@@ -556,9 +556,9 @@ class SemanticRetriever:
                 self.logger.error(f"ChromaDB search failed, falling back to in-memory: {e}")
         
         # Fallback to in-memory search
-        if not self.documents:
-            # Load from ChromaDB if available
-            self.documents = self._load_documents_from_chroma()
+        if not self.documents and hasattr(self, 'connection_pool') and self.connection_pool:
+            # Load from ChromaDB using connection pool
+            self.documents = await self._load_documents_from_chroma_pooled()
         
         if not self.documents:
             return []
@@ -601,9 +601,9 @@ class SemanticRetriever:
                     if key not in ["date_range", "boost_recent"]:
                         where_clause[key] = value
             
-            # Search ChromaDB
+            # Search ChromaDB (convert numpy array to list for ChromaDB compatibility)
             results = self.collection.query(
-                query_embeddings=[query_embedding],
+                query_embeddings=[query_embedding.tolist()],
                 n_results=min(top_k * 2, 100),  # Get more for reranking
                 where=where_clause,
                 include=["documents", "metadatas", "distances"]
@@ -1436,7 +1436,10 @@ class SemanticRetriever:
             batch = texts[i:i + batch_size]
             
             try:
-                if self.use_openai_embeddings and self.openai_embeddings:
+                if self.use_gemini_embeddings and self.gemini_embeddings:
+                    # Use Gemini embeddings
+                    batch_embeddings = await self._embed_gemini_batch(batch)
+                elif self.use_openai_embeddings and self.openai_embeddings:
                     # Use OpenAI embeddings with retry logic
                     batch_embeddings = await self._embed_openai_batch(batch)
                 else:
@@ -1458,6 +1461,25 @@ class SemanticRetriever:
         
         return all_embeddings
     
+    async def _embed_gemini_batch(self, texts: List[str]) -> List[List[float]]:
+        """Embed texts using Gemini embeddings."""
+        try:
+            if self.gemini_embeddings:
+                # Use Gemini's embed_documents method
+                embeddings = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: self.gemini_embeddings.embed_documents(texts)
+                )
+                # Ensure embeddings are lists (not numpy arrays)
+                if embeddings and hasattr(embeddings[0], 'tolist'):
+                    return [emb.tolist() if hasattr(emb, 'tolist') else emb for emb in embeddings]
+                return embeddings
+            else:
+                return [[0.0] * self.embedding_dimension] * len(texts)
+        except Exception as e:
+            self.logger.error(f"Gemini embedding failed: {e}")
+            return [[0.0] * self.embedding_dimension] * len(texts)
+
     async def _embed_openai_batch(self, texts: List[str]) -> List[List[float]]:
         """Embed texts using OpenAI with rate limiting."""
         max_retries = 3

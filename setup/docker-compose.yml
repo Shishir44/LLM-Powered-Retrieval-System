@@ -30,18 +30,18 @@ services:
       - MAX_CONCURRENT_REQUESTS=10
       - QUERY_CACHE_SIZE=1000
       - EMBEDDING_CACHE_SIZE=5000
-      # Database connection optimizations
-      - DB_POOL_SIZE=20
-      - DB_MAX_OVERFLOW=30
+      # Database connection optimizations - increased for better performance
+      - DB_POOL_SIZE=50       # Increased from 20
+      - DB_MAX_OVERFLOW=100   # Increased from 30
       - DB_POOL_TIMEOUT=30
     deploy:
       resources:
         limits:
-          memory: 4G
-          cpus: '2.0'
+          memory: 8G          # Increased from 4G for better performance
+          cpus: '4.0'         # Increased from 2.0 for better concurrency
         reservations:
-          memory: 2G
-          cpus: '1.0'
+          memory: 4G          # Increased from 2G for better baseline performance
+          cpus: '2.0'         # Increased from 1.0 for better baseline performance
     volumes:
       - ../vector_database:/app/data
     depends_on:
@@ -51,10 +51,11 @@ services:
       - llm-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8002/api/v1/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      interval: 15s          # Reduced from 30s for faster detection
+      timeout: 5s            # Reduced from 10s for faster failure detection
+      retries: 5             # Increased from 3 for better resilience
+      start_period: 120s     # Increased from 60s for initialization
+    restart: unless-stopped  # Automatic restart on failure
 
   # Conversation Service
   conversation-service:
@@ -89,9 +90,10 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      interval: 15s          # Reduced from 30s for faster detection
+      timeout: 5s            # Reduced from 10s for faster failure detection
+      retries: 5             # Increased from 3 for better resilience
+      start_period: 90s      # Added startup period
 
   # Analytics Service
   analytics-service:

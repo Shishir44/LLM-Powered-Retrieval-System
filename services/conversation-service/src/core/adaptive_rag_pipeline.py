@@ -22,6 +22,9 @@ import logging
 import requests
 import aiohttp
 from datetime import datetime
+import time
+from asyncio import Semaphore
+from contextlib import asynccontextmanager
 from langchain_openai import ChatOpenAI
 from .llm_client_manager import LLMClientManager, LLMResponse
 
@@ -98,31 +101,113 @@ except ImportError as e:
         print(f"Environment config loaded - OpenAI: {len(config.openai_api_key)} chars, Gemini: {len(config.gemini_api_key)} chars, Primary: {config.primary_llm_provider}")
         return config
 
+class CircuitBreakerState:
+    """Circuit breaker state management."""
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
+
+class CircuitBreaker:
+    """Circuit breaker for service resilience."""
+    
+    def __init__(self, failure_threshold: int = 5, recovery_timeout: int = 60, timeout: int = 30):
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.timeout = timeout
+        self.failure_count = 0
+        self.last_failure_time = None
+        self.state = CircuitBreakerState.CLOSED
+        
+    def can_execute(self) -> bool:
+        """Check if request can be executed."""
+        if self.state == CircuitBreakerState.CLOSED:
+            return True
+        elif self.state == CircuitBreakerState.OPEN:
+            if time.time() - self.last_failure_time > self.recovery_timeout:
+                self.state = CircuitBreakerState.HALF_OPEN
+                return True
+            return False
+        else:  # HALF_OPEN
+            return True
+            
+    def record_success(self):
+        """Record successful execution."""
+        self.failure_count = 0
+        self.state = CircuitBreakerState.CLOSED
+        
+    def record_failure(self):
+        """Record failed execution."""
+        self.failure_count += 1
+        self.last_failure_time = time.time()
+        if self.failure_count >= self.failure_threshold:
+            self.state = CircuitBreakerState.OPEN
+
 class HTTPKnowledgeRetriever:
-    """Simple HTTP-based knowledge retriever for microservices communication."""
+    """Optimized HTTP-based knowledge retriever with connection pooling and circuit breaker."""
     
     def __init__(self, base_url: str = "http://knowledge-base-service:8002"):
         self.base_url = base_url
         self.logger = logging.getLogger(__name__)
+        self._session = None
+        self._connector = None
+        self._semaphore = Semaphore(20)  # Limit concurrent requests
+        self.circuit_breaker = CircuitBreaker(failure_threshold=3, recovery_timeout=30)
+        self._connection_pool_size = 50
+        self._per_host_limit = 20
     
+    @asynccontextmanager
+    async def _get_session(self):
+        """Get optimized aiohttp session with connection pooling."""
+        if self._session is None or self._session.closed:
+            self._connector = aiohttp.TCPConnector(
+                limit=self._connection_pool_size,
+                limit_per_host=self._per_host_limit,
+                keepalive_timeout=60,
+                enable_cleanup_closed=True,
+                use_dns_cache=True,
+                ttl_dns_cache=300,
+                family=0  # Allow both IPv4 and IPv6
+            )
+            
+            timeout = aiohttp.ClientTimeout(
+                total=15,  # Reduced from 45-120s
+                connect=5,
+                sock_read=10
+            )
+            
+            self._session = aiohttp.ClientSession(
+                connector=self._connector,
+                timeout=timeout,
+                headers={'Connection': 'keep-alive'}
+            )
+        
+        try:
+            yield self._session
+        finally:
+            pass  # Keep session alive for reuse
+    
+    async def close(self):
+        """Clean up resources."""
+        if self._session and not self._session.closed:
+            await self._session.close()
+        if self._connector:
+            await self._connector.close()
+
     async def enhanced_semantic_search(self, 
                                      query: str, 
                                      top_k: int = 5,
                                      enable_boosting: bool = True,
                                      category: Optional[str] = None,
                                      **kwargs) -> List[Dict[str, Any]]:
-        """Perform enhanced semantic search via knowledge base service with improved timeout handling."""
-        import asyncio
+        """Perform enhanced semantic search with circuit breaker and optimized connection pooling."""
         
-        max_retries = 3
-        base_timeout = 45  # Increased base timeout
-        max_timeout = 120  # Maximum timeout for final retry
+        # Check circuit breaker
+        if not self.circuit_breaker.can_execute():
+            self.logger.warning(f"Circuit breaker is open, returning cached results for query: '{query[:50]}...'")
+            return await self._get_cached_fallback_results(query, top_k)
         
-        for attempt in range(max_retries):
+        async with self._semaphore:  # Limit concurrent requests
             try:
-                # Calculate timeout with exponential backoff
-                current_timeout = min(base_timeout * (2 ** attempt), max_timeout)
-                
                 params = {
                     "q": query,
                     "limit": top_k,
@@ -131,68 +216,40 @@ class HTTPKnowledgeRetriever:
                 if category:
                     params["category"] = category
                 
-                self.logger.info(f"Searching knowledge base (attempt {attempt + 1}/{max_retries}): {self.base_url}/api/v1/search with query '{query}' (timeout: {current_timeout}s)")
+                self.logger.info(f"Searching knowledge base: {self.base_url}/api/v1/search with query '{query[:50]}...'")
                 
-                # Create session with connection pooling for better performance
-                connector = aiohttp.TCPConnector(
-                    limit=10,
-                    limit_per_host=5,
-                    keepalive_timeout=30,
-                    enable_cleanup_closed=True
-                )
-                
-                async with aiohttp.ClientSession(connector=connector) as session:
+                async with self._get_session() as session:
                     async with session.get(
                         f"{self.base_url}/api/v1/search",
-                        params=params,
-                        timeout=aiohttp.ClientTimeout(total=current_timeout, connect=10)
+                        params=params
                     ) as response:
                         if response.status == 200:
                             result = await response.json()
                             results = result.get("results", [])
-                            self.logger.info(f"Knowledge base returned {len(results)} results on attempt {attempt + 1}")
+                            self.logger.info(f"Knowledge base returned {len(results)} results")
+                            self.circuit_breaker.record_success()
                             return results
                         else:
                             response_text = await response.text()
-                            self.logger.error(f"Knowledge base search failed (attempt {attempt + 1}): HTTP {response.status}, Response: {response_text}")
+                            self.logger.error(f"Knowledge base search failed: HTTP {response.status}, Response: {response_text}")
+                            self.circuit_breaker.record_failure()
                             
                             # Don't retry for client errors (4xx)
                             if 400 <= response.status < 500:
                                 return []
+                            
+                            # Return fallback for server errors
+                            return await self._get_cached_fallback_results(query, top_k)
                                 
             except asyncio.TimeoutError:
-                self.logger.warning(f"Knowledge base search timeout on attempt {attempt + 1}/{max_retries} (timeout: {current_timeout}s)")
-                if attempt == max_retries - 1:
-                    self.logger.error(f"Final timeout after {max_retries} attempts for query: '{query}'")
-                    
-                    # Return cached results if available as fallback
-                    cached_results = await self._get_cached_fallback_results(query, top_k)
-                    if cached_results:
-                        self.logger.info(f"Using cached fallback results: {len(cached_results)} items")
-                        return cached_results
-                        
-                    return []
-                else:
-                    # Wait before retrying with exponential backoff
-                    wait_time = 2 ** attempt
-                    self.logger.info(f"Waiting {wait_time}s before retry...")
-                    await asyncio.sleep(wait_time)
+                self.logger.warning(f"Knowledge base search timeout for query: '{query[:50]}...'")
+                self.circuit_breaker.record_failure()
+                return await self._get_cached_fallback_results(query, top_k)
                     
             except Exception as e:
-                self.logger.error(f"Error in enhanced semantic search (attempt {attempt + 1}): {e}", exc_info=True)
-                if attempt == max_retries - 1:
-                    # Try fallback on final attempt
-                    fallback_results = await self._get_cached_fallback_results(query, top_k)
-                    if fallback_results:
-                        self.logger.info(f"Using fallback results after all attempts failed: {len(fallback_results)} items")
-                        return fallback_results
-                    return []
-                else:
-                    # Wait before retrying
-                    wait_time = 2 ** attempt
-                    await asyncio.sleep(wait_time)
-        
-        return []
+                self.logger.error(f"Error in enhanced semantic search: {e}", exc_info=True)
+                self.circuit_breaker.record_failure()
+                return await self._get_cached_fallback_results(query, top_k)
 
     async def _get_cached_fallback_results(self, query: str, top_k: int) -> List[Dict[str, Any]]:
         """Provide fallback results from cache or simple text matching when knowledge base is unavailable."""

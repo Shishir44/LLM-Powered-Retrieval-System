@@ -30,9 +30,10 @@ class AdvancedDocumentChunker:
     
     def __init__(self, 
                  model_name: str = "text-embedding-3-large",  # For compatibility, not used for chunking
-                 max_chunk_size: int = 1024,  # PHASE 1.2: Larger chunks for better context
-                 overlap_size: int = 256,     # PHASE 1.2: Better overlap for context retention
-                 similarity_threshold: float = 0.8):  # Adjusted for larger chunks
+                 max_chunk_size: int = 512,   # Optimized: Reduced from 1024 for better performance
+                 overlap_size: int = 128,     # Optimized: Reduced from 256 for better performance
+                 similarity_threshold: float = 0.8,
+                 enable_streaming: bool = True):  # Enable streaming processing
         
         # PHASE 1.1: Remove sentence transformer dependency for chunking
         # Store config but don't initialize sentence transformer
@@ -40,6 +41,7 @@ class AdvancedDocumentChunker:
         self.max_chunk_size = max_chunk_size
         self.overlap_size = overlap_size
         self.similarity_threshold = similarity_threshold
+        self.enable_streaming = enable_streaming
         
         # Load spacy model for sentence boundary detection
         try:
@@ -49,21 +51,22 @@ class AdvancedDocumentChunker:
             logging.warning("spaCy model not found. Using simple sentence splitting.")
             self.nlp = None
         
-        # Enhanced text splitter with better separators for larger chunks
+        # Optimized text splitter with better separators for smaller, efficient chunks
         self.fallback_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=max_chunk_size,
-            chunk_overlap=overlap_size,
+            chunk_size=self.max_chunk_size,
+            chunk_overlap=self.overlap_size,
             length_function=len,
             separators=["\n\n\n", "\n\n", "\n", ".", "!", "?", ";", ":", " ", ""]
         )
         
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
+        self.logger.info(f"AdvancedDocumentChunker initialized with max_chunk_size={self.max_chunk_size}, overlap_size={self.overlap_size}, streaming={self.enable_streaming}")
     
     def chunk_document(self, 
                       document: Dict[str, Any],
                       chunking_strategy: str = "semantic_structure") -> List[DocumentChunk]:
-        """Main chunking method with multiple strategies."""
+        """Main chunking method with streaming support for large documents."""
         
         content = document.get("content", "")
         title = document.get("title", "")
@@ -71,6 +74,10 @@ class AdvancedDocumentChunker:
         
         if not content.strip():
             return []
+        
+        # Use streaming for large documents
+        if self.enable_streaming and len(content) > 50000:  # 50KB threshold
+            return self._stream_chunk_document(content, title, doc_id, document.get("metadata", {}), chunking_strategy)
         
         if chunking_strategy == "semantic_structure":
             return self._semantic_structure_chunk(content, title, doc_id, document.get("metadata", {}))
@@ -81,12 +88,48 @@ class AdvancedDocumentChunker:
         else:
             return self._fallback_chunk(content, title, doc_id, document.get("metadata", {}))
     
+    def _stream_chunk_document(self, 
+                              content: str, 
+                              title: str, 
+                              doc_id: str,
+                              metadata: Dict[str, Any],
+                              chunking_strategy: str) -> List[DocumentChunk]:
+        """Stream processing for large documents to reduce memory usage."""
+        
+        self.logger.info(f"Using streaming chunking for large document ({len(content)} characters)")
+        
+        chunks = []
+        chunk_size = 10000  # Process in 10KB segments
+        
+        for i in range(0, len(content), chunk_size):
+            segment = content[i:i + chunk_size]
+            
+            # Process segment with standard chunking
+            if chunking_strategy == "semantic_structure":
+                segment_chunks = self._semantic_structure_chunk(segment, title, f"{doc_id}_seg_{i}", metadata)
+            elif chunking_strategy == "semantic":
+                segment_chunks = self._semantic_chunk(segment, title, f"{doc_id}_seg_{i}", metadata)
+            elif chunking_strategy == "structure_aware":
+                segment_chunks = self._structure_aware_chunk(segment, title, f"{doc_id}_seg_{i}", metadata)
+            else:
+                segment_chunks = self._fallback_chunk(segment, title, f"{doc_id}_seg_{i}", metadata)
+            
+            chunks.extend(segment_chunks)
+            
+            # Memory management - limit in-memory chunks
+            if len(chunks) > 1000:
+                self.logger.warning(f"Large number of chunks generated ({len(chunks)}), consider increasing chunk size")
+                break
+        
+        self.logger.info(f"Streaming chunking completed: {len(chunks)} chunks generated")
+        return chunks
+
     def _semantic_structure_chunk(self, 
                                  content: str, 
                                  title: str, 
                                  doc_id: str,
                                  metadata: Dict[str, Any]) -> List[DocumentChunk]:
-        """Combine semantic and structure-aware chunking."""
+        """Combine semantic and structure-aware chunking with optimized chunk sizes."""
         
         # First, identify document structure
         structured_sections = self._identify_document_structure(content)

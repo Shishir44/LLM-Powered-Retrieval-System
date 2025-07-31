@@ -9,6 +9,8 @@ from typing import Dict, List, Optional, Any, AsyncGenerator
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
+from collections import defaultdict
+from datetime import datetime, timedelta
 
 import openai
 from anthropic import AsyncAnthropic
@@ -17,11 +19,84 @@ from google.generativeai.types import GenerateContentResponse
 
 logger = logging.getLogger(__name__)
 
-
 class LLMProvider(Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GEMINI = "gemini"
+
+class CircuitBreakerState(Enum):
+    """Circuit breaker states."""
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
+
+class CircuitBreaker:
+    """Circuit breaker for LLM provider resilience."""
+    
+    def __init__(self, 
+                 provider: LLMProvider,
+                 failure_threshold: int = 5,
+                 recovery_timeout: int = 60,
+                 success_threshold: int = 2):
+        self.provider = provider
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.success_threshold = success_threshold
+        
+        self.failure_count = 0
+        self.success_count = 0
+        self.last_failure_time = None
+        self.state = CircuitBreakerState.CLOSED
+        
+        logger.info(f"Circuit breaker initialized for {provider.value}: threshold={failure_threshold}, recovery={recovery_timeout}s")
+        
+    def can_execute(self) -> bool:
+        """Check if request can be executed."""
+        if self.state == CircuitBreakerState.CLOSED:
+            return True
+        elif self.state == CircuitBreakerState.OPEN:
+            if self.last_failure_time and time.time() - self.last_failure_time > self.recovery_timeout:
+                self.state = CircuitBreakerState.HALF_OPEN
+                self.success_count = 0
+                logger.info(f"Circuit breaker for {self.provider.value} moved to HALF_OPEN")
+                return True
+            return False
+        else:  # HALF_OPEN
+            return True
+            
+    def record_success(self):
+        """Record successful execution."""
+        if self.state == CircuitBreakerState.HALF_OPEN:
+            self.success_count += 1
+            if self.success_count >= self.success_threshold:
+                self.state = CircuitBreakerState.CLOSED
+                self.failure_count = 0
+                logger.info(f"Circuit breaker for {self.provider.value} CLOSED after {self.success_count} successes")
+        elif self.state == CircuitBreakerState.CLOSED:
+            self.failure_count = max(0, self.failure_count - 1)  # Gradually reduce failure count
+        
+    def record_failure(self, error: Exception = None):
+        """Record failed execution."""
+        self.failure_count += 1
+        self.last_failure_time = time.time()
+        
+        if self.state == CircuitBreakerState.CLOSED and self.failure_count >= self.failure_threshold:
+            self.state = CircuitBreakerState.OPEN
+            logger.warning(f"Circuit breaker for {self.provider.value} OPENED after {self.failure_count} failures. Error: {error}")
+        elif self.state == CircuitBreakerState.HALF_OPEN:
+            self.state = CircuitBreakerState.OPEN
+            logger.warning(f"Circuit breaker for {self.provider.value} returned to OPEN state after failure in HALF_OPEN")
+    
+    def get_state(self) -> Dict[str, Any]:
+        """Get current circuit breaker state."""
+        return {
+            "provider": self.provider.value,
+            "state": self.state.value,
+            "failure_count": self.failure_count,
+            "success_count": self.success_count,
+            "last_failure_time": self.last_failure_time,
+            "can_execute": self.can_execute()
+        }
 
 
 @dataclass
@@ -33,6 +108,8 @@ class LLMResponse:
     usage: Optional[Dict[str, Any]] = None
     finish_reason: Optional[str] = None
     response_time: Optional[float] = None
+    circuit_breaker_state: Optional[str] = None
+    fallback_used: bool = False
 
 
 @dataclass
@@ -426,7 +503,9 @@ class LLMClientManager:
     def __init__(self, config):
         self.config = config
         self.clients: Dict[LLMProvider, BaseLLMClient] = {}
+        self.circuit_breakers: Dict[LLMProvider, CircuitBreaker] = {}
         self._initialize_clients()
+        self._initialize_circuit_breakers()
     
     def _initialize_clients(self):
         """Initialize all available LLM clients."""
@@ -452,6 +531,17 @@ class LLMClientManager:
             )
         
         logger.info(f"Initialized {len(self.clients)} LLM clients: {list(self.clients.keys())}")
+    
+    def _initialize_circuit_breakers(self):
+        """Initialize circuit breakers for all clients."""
+        for provider in self.clients.keys():
+            self.circuit_breakers[provider] = CircuitBreaker(
+                provider=provider,
+                failure_threshold=getattr(self.config, 'circuit_breaker_failure_threshold', 5),
+                recovery_timeout=getattr(self.config, 'circuit_breaker_recovery_timeout', 60),
+                success_threshold=getattr(self.config, 'circuit_breaker_success_threshold', 2)
+            )
+        logger.info(f"Initialized circuit breakers for {len(self.circuit_breakers)} providers")
     
     def _get_provider_order(self) -> List[LLMProvider]:
         """Get the order of providers to try (primary first, then fallbacks)."""
@@ -485,19 +575,32 @@ class LLMClientManager:
         max_tokens: int = 2000,
         **kwargs
     ) -> LLMResponse:
-        """Generate response with fallback support."""
-        provider_order = self._get_provider_order()
+        """Generate response with circuit breaker fallback support."""
+        provider_order = self._get_provider_order_with_circuit_breakers()
         
         if not provider_order:
             raise ValueError("No LLM providers available")
         
         last_error = None
+        fallback_used = False
         
-        for provider in provider_order:
+        for i, provider in enumerate(provider_order):
+            if provider not in self.circuit_breakers:
+                continue
+                
+            circuit_breaker = self.circuit_breakers[provider]
+            
+            # Check circuit breaker
+            if not circuit_breaker.can_execute():
+                logger.info(f"Circuit breaker for {provider.value} is OPEN, skipping")
+                fallback_used = True
+                continue
+            
             client = self.clients[provider]
             
             try:
-                logger.info(f"Attempting to generate response using {provider.value}")
+                logger.info(f"Attempting to generate response using {provider.value} (attempt {i+1}/{len(provider_order)})")
+                start_time = time.time()
                 
                 # Use timeout for each provider attempt
                 response = await asyncio.wait_for(
@@ -505,13 +608,31 @@ class LLMClientManager:
                     timeout=self.config.fallback_timeout
                 )
                 
+                response_time = time.time() - start_time
+                
+                # Record success in circuit breaker
+                circuit_breaker.record_success()
+                
                 logger.info(f"Successfully generated response using {provider.value}")
-                return response
+                
+                # Update response with circuit breaker info
+                return LLMResponse(
+                    content=response.content,
+                    provider=response.provider,
+                    model=response.model,
+                    usage=response.usage,
+                    finish_reason=response.finish_reason,
+                    response_time=response_time,
+                    circuit_breaker_state=circuit_breaker.state.value,
+                    fallback_used=fallback_used
+                )
                 
             except Exception as e:
                 last_error = e
+                circuit_breaker.record_failure(e)
                 error_message = str(e) if str(e) else f"{type(e).__name__} with empty message (repr: {repr(e)})"
                 logger.warning(f"Failed to generate response using {provider.value}: {error_message}")
+                fallback_used = True
                 
                 if not self.config.enable_fallback or provider == provider_order[-1]:
                     # If fallback is disabled or this is the last provider, raise the error
@@ -520,8 +641,56 @@ class LLMClientManager:
                 logger.info(f"Falling back to next provider...")
         
         # If we get here, all providers failed
-        logger.error("All LLM providers failed")
-        raise last_error or Exception("All LLM providers failed")
+        circuit_breaker_status = {p.value: cb.get_state() for p, cb in self.circuit_breakers.items()}
+        logger.error(f"All LLM providers failed. Circuit breaker status: {circuit_breaker_status}")
+        raise last_error or Exception(f"All LLM providers failed. Circuit breaker status: {circuit_breaker_status}")
+        
+    def _get_provider_order_with_circuit_breakers(self) -> List[LLMProvider]:
+        """Get ordered list of providers to try, considering circuit breaker states."""
+        # Start with primary provider from config
+        primary = getattr(self.config, 'primary_llm_provider', 'gemini')
+        
+        provider_map = {
+            'openai': LLMProvider.OPENAI,
+            'anthropic': LLMProvider.ANTHROPIC,
+            'gemini': LLMProvider.GEMINI
+        }
+        
+        order = []
+        
+        # Add primary provider first (if circuit breaker allows)
+        if primary in provider_map:
+            primary_provider = provider_map[primary]
+            if (primary_provider in self.clients and 
+                primary_provider in self.circuit_breakers):
+                order.append(primary_provider)
+        
+        # Add fallback providers
+        fallback_providers = getattr(self.config, 'fallback_providers', ['openai', 'anthropic'])
+        for fb_provider in fallback_providers:
+            if fb_provider in provider_map:
+                fb_provider_enum = provider_map[fb_provider]
+                if (fb_provider_enum in self.clients and 
+                    fb_provider_enum in self.circuit_breakers and 
+                    fb_provider_enum not in order):
+                    order.append(fb_provider_enum)
+        
+        # Sort by circuit breaker health (closed states first)
+        def circuit_breaker_priority(provider):
+            if provider not in self.circuit_breakers:
+                return 999  # Lowest priority
+            cb = self.circuit_breakers[provider]
+            if cb.state == CircuitBreakerState.CLOSED:
+                return 0  # Highest priority
+            elif cb.state == CircuitBreakerState.HALF_OPEN:
+                return 1  # Medium priority
+            else:  # OPEN
+                return 2  # Low priority (but still try if others fail)
+        
+        order.sort(key=circuit_breaker_priority)
+        
+        logger.info(f"Provider order with circuit breakers: {[p.value for p in order]}")
+        return order
     
     async def generate_streaming_response(
         self, 

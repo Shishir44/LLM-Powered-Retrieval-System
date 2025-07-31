@@ -270,8 +270,10 @@ class AdvancedReasoningEngine:
                 question=query
             )
             
-            response = await self.llm.ainvoke([SystemMessage(content=prompt)])
-            answer = response.content
+            # Convert to format compatible with LLM
+            messages = [{"role": "system", "content": prompt}]
+            response = await self.llm.ainvoke(messages)
+            answer = response.content if hasattr(response, 'content') else str(response)
         else:
             answer = self._generate_fallback_answer(context, query)
         
@@ -293,7 +295,8 @@ class AdvancedReasoningEngine:
             reasoning_steps=[reasoning_step],
             final_answer=answer,
             overall_confidence=reasoning_step.confidence,
-            evidence_strength="strong" if len(retrieved_docs) >= 3 else "moderate"
+            evidence_strength="strong" if len(retrieved_docs) >= 3 else "moderate",
+            processing_time_ms=0.0  # Will be set by caller
         )
 
     async def _handle_moderate_query(self, query: str, user_context: Optional[Dict]) -> ReasoningChain:
@@ -340,8 +343,10 @@ class AdvancedReasoningEngine:
                 context=combined_context,
                 question=query
             )
-            response = await self.llm.ainvoke([SystemMessage(content=prompt)])
-            final_answer = response.content
+            # Convert to format compatible with LLM
+            messages = [{"role": "system", "content": prompt}]
+            response = await self.llm.ainvoke(messages)
+            final_answer = response.content if hasattr(response, 'content') else str(response)
         else:
             final_answer = self._synthesize_fallback_answer(reasoning_steps, query)
         
@@ -353,7 +358,8 @@ class AdvancedReasoningEngine:
             reasoning_steps=reasoning_steps,
             final_answer=final_answer,
             overall_confidence=overall_confidence,
-            evidence_strength="strong" if overall_confidence > 0.7 else "moderate"
+            evidence_strength="strong" if overall_confidence > 0.7 else "moderate",
+            processing_time_ms=0.0  # Will be set by caller
         )
 
     async def _handle_complex_query(self, query: str, user_context: Optional[Dict]) -> ReasoningChain:
@@ -393,8 +399,10 @@ class AdvancedReasoningEngine:
                 
                 Provide focused analysis of how this concept relates to answering the original question.
                 """
-                response = await self.llm.ainvoke([SystemMessage(content=analysis_prompt)])
-                reasoning = response.content
+                # Convert to format compatible with LLM
+                messages = [{"role": "system", "content": analysis_prompt}]
+                response = await self.llm.ainvoke(messages)
+                reasoning = response.content if hasattr(response, 'content') else str(response)
                 answer = self._extract_answer_from_reasoning(reasoning)
             else:
                 reasoning = f"Analysis of concept '{concept}' in relation to the query"
@@ -422,8 +430,10 @@ class AdvancedReasoningEngine:
                 context=all_context,
                 question=query
             )
-            response = await self.llm.ainvoke([SystemMessage(content=prompt)])
-            final_answer = response.content
+            # Convert to format compatible with LLM
+            messages = [{"role": "system", "content": prompt}]
+            response = await self.llm.ainvoke(messages)
+            final_answer = response.content if hasattr(response, 'content') else str(response)
         else:
             final_answer = self._synthesize_complex_answer(reasoning_steps, query)
         
@@ -436,6 +446,7 @@ class AdvancedReasoningEngine:
             final_answer=final_answer,
             overall_confidence=overall_confidence,
             evidence_strength="strong" if overall_confidence > 0.8 else "moderate",
+            processing_time_ms=0.0,  # Will be set by caller
             metadata={
                 "key_concepts": key_concepts,
                 "reasoning_depth": len(reasoning_steps),
@@ -498,8 +509,10 @@ class AdvancedReasoningEngine:
                 context=combined_context,
                 question=query
             )
-            response = await self.llm.ainvoke([SystemMessage(content=prompt)])
-            final_answer = response.content
+            # Convert to format compatible with LLM
+            messages = [{"role": "system", "content": prompt}]
+            response = await self.llm.ainvoke(messages)
+            final_answer = response.content if hasattr(response, 'content') else str(response)
         else:
             final_answer = self._synthesize_multi_domain_answer(domain_results, query)
         
@@ -512,6 +525,7 @@ class AdvancedReasoningEngine:
             final_answer=final_answer,
             overall_confidence=overall_confidence,
             evidence_strength="strong" if overall_confidence > 0.8 else "moderate",
+            processing_time_ms=0.0,  # Will be set by caller
             metadata={
                 "domains_analyzed": domains,
                 "cross_domain_synthesis": True,
@@ -724,7 +738,8 @@ class AdvancedReasoningEngine:
             reasoning_steps=[fallback_step],
             final_answer=fallback_step.answer,
             overall_confidence=0.1,
-            evidence_strength="weak"
+            evidence_strength="weak",
+            processing_time_ms=0.0
         )
 
     def _generate_fallback_answer(self, context: str, query: str) -> str:

@@ -443,15 +443,30 @@ async def search_documents(
         # Convert results to response format
         search_results = []
         for result in results:
-            doc = result.document
-            search_result = {
-                "id": doc.id,
-                "title": doc.title,
-                "content": doc.content,  # Return full content without truncation
-                "category": doc.metadata.get("category", ""),
-                "subcategory": doc.metadata.get("subcategory"),
-                "tags": _ensure_tags_list(doc.metadata.get("tags", [])),
-                "score": result.hybrid_score if hasattr(result, 'hybrid_score') else result.semantic_score,
+            # Handle both RetrievalResult objects and emergency fallback dictionaries
+            if isinstance(result, dict):
+                # Emergency fallback result (already in dict format)
+                search_result = {
+                    "id": result.get("id", ""),
+                    "title": result.get("title", ""),
+                    "content": result.get("content", ""),
+                    "category": result.get("category", ""),
+                    "subcategory": result.get("subcategory"),
+                    "tags": _ensure_tags_list(result.get("tags", [])),
+                    "score": result.get("score", 0.0),
+                    "metadata": result.get("metadata", {})
+                }
+            else:
+                # Normal RetrievalResult object
+                doc = result.document
+                search_result = {
+                    "id": doc.id,
+                    "title": doc.title,
+                    "content": doc.content,  # Return full content without truncation
+                    "category": doc.metadata.get("category", ""),
+                    "subcategory": doc.metadata.get("subcategory"),
+                    "tags": _ensure_tags_list(doc.metadata.get("tags", [])),
+                    "score": result.hybrid_score if hasattr(result, 'hybrid_score') else result.semantic_score,
                 "metadata": {
                     "similarity_score": result.semantic_score,
                     "retrieval_method": getattr(result, 'retrieval_method', 'semantic'),
@@ -1058,6 +1073,20 @@ async def health_check():
         cpu_percent = psutil.cpu_percent(interval=0.1)
         memory = psutil.virtual_memory()
         
+        # Get retriever statistics (including connection pool info)
+        retriever_stats = {}
+        try:
+            stats = retriever.get_statistics()
+            retriever_stats = {
+                "total_documents": stats.get("total_documents_chroma", 0),
+                "storage_backend": stats.get("storage_backend", "unknown"),
+                "connection_pool_enabled": stats.get("cache_performance", {}).get("connection_pooling_enabled", False),
+                "query_cache_size": stats.get("query_cache_size", 0),
+                "embedding_cache_size": stats.get("embedding_cache_size", 0)
+            }
+        except Exception as e:
+            retriever_stats = {"error": str(e)[:50]}
+            
         response_time = round((time.time() - start_time) * 1000, 2)  # ms
         
         health_data = {
@@ -1073,6 +1102,7 @@ async def health_check():
                 "memory_percent": memory.percent,
                 "memory_available_gb": round(memory.available / (1024**3), 2)
             },
+            "retriever": retriever_stats,
             "version": "2.3"
         }
         
